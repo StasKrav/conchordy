@@ -87,7 +87,7 @@ app.put('/api/invites/:code/use', (req, res) => {
 
 // ========== API ПОЛЬЗОВАТЕЛЕЙ ==========
 app.get('/api/users', (req, res) => {
-  db.all("SELECT id, email, name, instruments, city, about, created_at FROM users", (err, rows) => {
+  db.all("SELECT id, email, name, instruments, city, about, genres, rating, created_at FROM users", (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
@@ -95,7 +95,7 @@ app.get('/api/users', (req, res) => {
 
 app.get('/api/users/:id', (req, res) => {
   const { id } = req.params;
-  db.get("SELECT id, email, name, instruments, city, about, created_at FROM users WHERE id = ?", [id], (err, row) => {
+  db.get("SELECT id, email, name, instruments, city, about, genres, rating, created_at FROM users WHERE id = ?", [id], (err, row) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!row) return res.status(404).json({ error: 'Пользователь не найден' });
     res.json(row);
@@ -104,9 +104,9 @@ app.get('/api/users/:id', (req, res) => {
 
 app.put('/api/users/:id', (req, res) => {
   const { id } = req.params;
-  const { name, instruments, city, about } = req.body;
-  db.run("UPDATE users SET name = ?, instruments = ?, city = ?, about = ? WHERE id = ?",
-    [name, instruments, city, about, id],
+  const { name, instruments, city, about, genres } = req.body;
+  db.run("UPDATE users SET name = ?, instruments = ?, city = ?, about = ?, genres = ? WHERE id = ?",
+    [name, instruments || '', city || '', about || '', genres || '', id],
     function(err) {
       if (err) return res.status(500).json({ error: err.message });
       if (this.changes === 0) return res.status(404).json({ error: 'Пользователь не найден' });
@@ -159,13 +159,12 @@ app.delete('/api/posts/:id', (req, res) => {
 // Вставь этот эндпоинт вместо старого /api/register
 
 app.post('/api/register', async (req, res) => {
-  const { email, password, name, inviteCode, instruments, city, about } = req.body;
+  const { email, password, name, inviteCode, instruments, city, about, genres } = req.body;
   
   if (!email || !password || !name || !inviteCode) {
     return res.status(400).json({ error: 'Email, пароль, имя и инвайт-код обязательны' });
   }
   
-  // Проверяем инвайт
   db.get("SELECT * FROM invites WHERE code = ? AND used_by IS NULL", [inviteCode], async (err, invite) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!invite) {
@@ -177,9 +176,9 @@ app.post('/api/register', async (req, res) => {
     
     const userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
     
-    db.run(`INSERT INTO users (id, email, password_hash, name, instruments, city, about, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [userId, email, password_hash, name, instruments || '', city || '', about || '', Date.now()],
+    db.run(`INSERT INTO users (id, email, password_hash, name, instruments, city, about, genres, rating, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [userId, email, password_hash, name, instruments || '', city || '', about || '', genres || '', 0, Date.now()],
       function(err) {
         if (err) {
           if (err.message.includes('UNIQUE')) {
@@ -188,11 +187,10 @@ app.post('/api/register', async (req, res) => {
           return res.status(500).json({ error: err.message });
         }
         
-        // Помечаем инвайт как использованный
         db.run("UPDATE invites SET used_by = ?, used_at = ? WHERE code = ?",
           [userId, Date.now(), inviteCode]);
         
-        res.json({ success: true, userId, user: { id: userId, email, name, instruments, city, about } });
+        res.json({ success: true, userId, user: { id: userId, email, name, instruments, city, about, genres, rating: 0 } });
       });
   });
 });
@@ -261,6 +259,27 @@ app.post('/api/reset-password', async (req, res) => {
           res.json({ success: true });
         });
     });
+});
+
+// Повысить рейтинг пользователя (после успешного проекта)
+app.post('/api/users/:id/rate', (req, res) => {
+  const { id } = req.params;
+  console.log(`⭐ Повышение рейтинга пользователя: ${id}`);
+  
+  db.run("UPDATE users SET rating = rating + 1 WHERE id = ?", [id], function(err) {
+    if (err) {
+      console.error('Ошибка обновления рейтинга:', err);
+      return res.status(500).json({ error: err.message });
+    }
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+    // Получаем новый рейтинг
+    db.get("SELECT rating FROM users WHERE id = ?", [id], (err, row) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true, newRating: row.rating });
+    });
+  });
 });
 
 app.listen(port, () => {

@@ -880,3 +880,64 @@ textarea#restoreCodeInput {
   border: 2px solid var(--accent) !important;
   background: #fffaf5 !important;
 }
+
+    .rating-star {
+      color: #f5b042;
+      margin-right: 4px;
+    }
+    .rating-value {
+      font-weight: 600;
+      margin-left: 4px;
+    }
+    .genre-badge {
+      display: inline-block;
+      background: var(--accent);
+      color: white;
+      font-size: 0.65rem;
+      padding: 2px 8px;
+      border-radius: 20px;
+      margin-right: 6px;
+      margin-bottom: 4px;
+    }
+    .genres-filter {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .genre-filter-btn {
+      background: var(--card-bg);
+      border: 1px solid var(--border-light);
+      padding: 4px 12px;
+      border-radius: 30px;
+      font-size: 0.7rem;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .genre-filter-btn.active {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+    .post-rating {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+    .rate-btn {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 0.7rem;
+      margin-left: 8px;
+      transition: 0.2s;
+    }
+    .rate-btn:hover {
+      color: var(--accent);
+    }

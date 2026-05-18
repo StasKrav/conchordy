@@ -9,6 +9,41 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* Дополнительные стили */
+    .post-rating, .post-genres {
+      display: none;
+    }
+    .chat-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(4px);
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+    .chat-modal-card {
+      background: var(--card-bg);
+      max-width: 400px;
+      width: 90%;
+      border-radius: 24px;
+      padding: 24px;
+    }
+    .chat-modal-card textarea {
+      width: 100%;
+      padding: 12px;
+      border-radius: 16px;
+      border: 1px solid var(--border-light);
+      font-family: inherit;
+      resize: vertical;
+      margin: 12px 0;
+    }
+  </style>
 </head>
 <body>
 <div class="app-wrapper" id="appRoot"></div>
@@ -22,6 +57,7 @@
   let invites = [];
   let posts = [];
   let currentUser = null;
+  let currentGenreFilter = null;
   
   // ========== ЗАГРУЗКА ДАННЫХ ==========
   async function loadInvites() {
@@ -53,11 +89,11 @@
     return response.json();
   }
   
-  async function register(email, password, name, inviteCode, instruments, city, about) {
+  async function register(email, password, name, inviteCode, instruments, city, about, genres) {
     const response = await fetch(`${API_BASE}/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, name, inviteCode, instruments, city, about })
+      body: JSON.stringify({ email, password, name, inviteCode, instruments, city, about, genres })
     });
     return response.json();
   }
@@ -80,16 +116,7 @@
     return response.json();
   }
   
-  // ========== СОХРАНЕНИЕ ПОСТОВ И ИНВАЙТОВ ==========
-  async function saveInviteToServer(code, createdBy) {
-    const response = await fetch(`${API_BASE}/invites`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, created_by: createdBy })
-    });
-    return response.ok;
-  }
-  
+  // ========== СОХРАНЕНИЕ ==========
   async function updateUserOnServer(userId, updates) {
     const response = await fetch(`${API_BASE}/users/${userId}`, {
       method: 'PUT',
@@ -120,6 +147,15 @@
   async function deletePostOnServer(postId) {
     const response = await fetch(`${API_BASE}/posts/${postId}`, {
       method: 'DELETE'
+    });
+    return response.ok;
+  }
+  
+  async function saveInviteToServer(code, createdBy) {
+    const response = await fetch(`${API_BASE}/invites`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, created_by: createdBy })
     });
     return response.ok;
   }
@@ -252,6 +288,12 @@
     return userPosts.sort((a, b) => b.created_at - a.created_at);
   }
   
+  // Функция отправки сообщения автору поста
+  function sendMessageToAuthor(authorId, authorName, message) {
+    console.log(`📨 Сообщение от ${currentUser.name} для ${authorName}: ${message}`);
+    alert(`Сообщение отправлено!\n\nКому: ${authorName}\nСообщение: ${message}\n\n(в реальном приложении здесь будет отправка на сервер и уведомление автору)`);
+  }
+  
   // ========== UI КОМПОНЕНТЫ ==========
   const typeIcons = {
     work: `<svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`,
@@ -285,31 +327,86 @@
     if (currentFilter) {
       filtered = filtered.filter(p => p.type === currentFilter);
     }
+    if (currentGenreFilter) {
+      filtered = filtered.filter(p => {
+        const author = users.find(u => u.id === p.user_id);
+        return author && author.genres && author.genres.toLowerCase().includes(currentGenreFilter.toLowerCase());
+      });
+    }
     
     if (filtered.length === 0) {
       container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-secondary);">Нет публикаций · создайте первую</div>';
       return;
     }
     
-    container.innerHTML = filtered.map(post => `
-      <div class="post-card">
-        <div class="post-header">
-          ${getBadgeHTML(post.type)}
-          <span class="verified-mark">${escapeHtml(getAuthorName(post.user_id))} · проверен</span>
+    container.innerHTML = filtered.map(post => {
+      const authorName = getAuthorName(post.user_id);
+      return `
+        <div class="post-card">
+          <div class="post-header">
+            ${getBadgeHTML(post.type)}
+            <span class="verified-mark">${escapeHtml(authorName)} · проверен</span>
+          </div>
+          <div class="post-title">${escapeHtml(post.title)}</div>
+          <div class="post-meta">${formatDate(post.created_at)}</div>
+          <div class="post-desc">${escapeHtml(post.description)}</div>
+          <hr />
+          <div class="chat-action" data-author-id="${post.user_id}" data-author-name="${escapeHtml(authorName)}">
+            <i class="fa-regular fa-message"></i> Написать в чат
+          </div>
         </div>
-        <div class="post-title">${escapeHtml(post.title)}</div>
-        <div class="post-meta">${formatDate(post.created_at)}</div>
-        <div class="post-desc">${escapeHtml(post.description)}</div>
-        <div class="tags">${(post.tags||[]).map(t => `<span class="tag">#${escapeHtml(t)}</span>`).join('')}</div>
-        <hr />
-        <div class="chat-action"><i class="fa-regular fa-message"></i> Написать в чат</div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
+    
+    document.querySelectorAll('.chat-action').forEach(el => {
+      el.addEventListener('click', (e) => {
+        const authorId = el.getAttribute('data-author-id');
+        const authorName = el.getAttribute('data-author-name');
+        showChatModal(authorId, authorName);
+      });
+    });
     
     document.querySelectorAll('.filter-badge').forEach(b => {
       const type = b.getAttribute('data-type');
       if (currentFilter === type) b.classList.add('active');
       else b.classList.remove('active');
+    });
+  }
+  
+  function showChatModal(authorId, authorName) {
+    // Создаём модальное окно
+    const modal = document.createElement('div');
+    modal.className = 'chat-modal';
+    modal.innerHTML = `
+      <div class="chat-modal-card">
+        <h3 style="margin-bottom: 8px;">Сообщение для ${escapeHtml(authorName)}</h3>
+        <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">Ваше сообщение будет отправлено автору объявления</p>
+        <textarea id="chatMessage" rows="4" placeholder="Напишите своё предложение, вопрос или приглашение..."></textarea>
+        <div style="display: flex; gap: 12px; margin-top: 12px;">
+          <button id="sendChatBtn" class="btn-primary" style="flex:1;">Отправить</button>
+          <button id="cancelChatBtn" class="btn-secondary" style="flex:1;">Отмена</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    
+    document.getElementById('sendChatBtn').onclick = () => {
+      const message = document.getElementById('chatMessage').value.trim();
+      if (!message) {
+        alert('Введите сообщение');
+        return;
+      }
+      sendMessageToAuthor(authorId, authorName, message);
+      modal.remove();
+    };
+    
+    document.getElementById('cancelChatBtn').onclick = () => {
+      modal.remove();
+    };
+    
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.remove();
     });
   }
   
@@ -367,6 +464,7 @@
         <div class="profile-info-card">
           <div class="info-row"><span class="info-label">Инструменты:</span><span>${escapeHtml(currentUser.instruments || 'не указано')}</span></div>
           <div class="info-row"><span class="info-label">Город:</span><span>${escapeHtml(currentUser.city || 'не указан')}</span></div>
+          <div class="info-row"><span class="info-label">Жанры:</span><span>${escapeHtml(currentUser.genres || 'не указаны')}</span></div>
           <div class="info-row"><span class="info-label">В сообществе:</span><span>${Math.floor((Date.now() - currentUser.created_at) / (1000*60*60*24*30))} месяцев</span></div>
         </div>
       `;
@@ -388,7 +486,6 @@
           <div class="my-post-title">${escapeHtml(post.title)}</div>
           <div class="my-post-meta">${formatDate(post.created_at)}</div>
           <div class="my-post-desc">${escapeHtml(post.description)}</div>
-          <div class="my-post-tags">${(post.tags||[]).map(t => `<span class="tag">#${escapeHtml(t)}</span>`).join('')}</div>
           ${post.status === 'active' ? `
             <div class="my-post-actions">
               <button class="action-edit" data-id="${post.id}"><i class="fa-regular fa-pen-to-square"></i> Редактировать</button>
@@ -506,6 +603,7 @@
           <div class="form-group"><label>Email</label><input type="email" id="editEmail" value="${escapeHtml(currentUser.email)}" disabled style="opacity:0.7; background:#2a2a2a;"></div>
           <div class="form-group"><label>Инструменты</label><input type="text" id="editInstruments" value="${escapeHtml(currentUser.instruments || '')}" placeholder="гитара, вокал..."></div>
           <div class="form-group"><label>Город</label><input type="text" id="editCity" value="${escapeHtml(currentUser.city || '')}" placeholder="Москва..."></div>
+          <div class="form-group"><label>Жанры</label><input type="text" id="editGenres" value="${escapeHtml(currentUser.genres || '')}" placeholder="рок, джаз, металл..."></div>
           <div class="form-group"><label>О себе</label><textarea id="editAbout" rows="3">${escapeHtml(currentUser.about || '')}</textarea></div>
           <div class="modal-buttons">
             <button class="btn-secondary" id="cancelEdit">Отмена</button>
@@ -523,6 +621,7 @@
         name: document.getElementById('editName').value.trim(),
         instruments: document.getElementById('editInstruments').value.trim(),
         city: document.getElementById('editCity').value.trim(),
+        genres: document.getElementById('editGenres').value.trim(),
         about: document.getElementById('editAbout').value.trim()
       };
       if (updates.name) {
@@ -610,10 +709,11 @@
             <div class="form-group"><label>Имя и фамилия</label><input type="text" id="regName" placeholder="Как к вам обращаться?"></div>
             <div class="form-group">
               <label><i class="fa-solid fa-ticket"></i> Инвайт-код <span class="accent-text">(обязательно)</span></label>
-              <input type="text" id="regInviteCode" placeholder="BACKSTAGE" class="accent-input">
+              <input type="text" id="regInviteCode" placeholder="Код от участника сообщества" class="accent-input">
             </div>
             <div class="form-group"><label>Инструменты (опционально)</label><input type="text" id="regInstruments" placeholder="гитара, вокал..."></div>
             <div class="form-group"><label>Город (опционально)</label><input type="text" id="regCity" placeholder="Москва..."></div>
+            <div class="form-group"><label>Жанры (опционально)</label><input type="text" id="regGenres" placeholder="рок, джаз, металл..."></div>
             <div class="form-group"><label>О себе (опционально)</label><textarea id="regAbout" rows="2"></textarea></div>
             
             <button id="doRegisterBtn" class="btn-primary" style="width:100%;">Зарегистрироваться</button>
@@ -631,6 +731,7 @@
         const inviteCode = document.getElementById('regInviteCode').value.trim().toUpperCase();
         const instruments = document.getElementById('regInstruments').value.trim();
         const city = document.getElementById('regCity').value.trim();
+        const genres = document.getElementById('regGenres').value.trim();
         const about = document.getElementById('regAbout').value.trim();
         
         if (!email || !password || !name || !inviteCode) {
@@ -643,7 +744,7 @@
           return;
         }
         
-        const result = await register(email, password, name, inviteCode, instruments, city, about);
+        const result = await register(email, password, name, inviteCode, instruments, city, about, genres);
         if (result.success) {
           currentUser = result.user;
           saveAllData();
@@ -763,6 +864,18 @@
   // ========== ОСНОВНОЕ ПРИЛОЖЕНИЕ ==========
   function renderMainApp() {
     const root = document.getElementById('appRoot');
+    
+    const allGenres = new Set();
+    users.forEach(u => {
+      if (u.genres) {
+        u.genres.split(',').forEach(g => {
+          const genre = g.trim();
+          if (genre) allGenres.add(genre);
+        });
+      }
+    });
+    const genreList = Array.from(allGenres);
+    
     root.innerHTML = `
       <div>
         <header class="app-header">
@@ -783,6 +896,13 @@
               <span class="filter-badge discourse" data-type="discourse">${typeIcons.discourse}<span>дискурс</span></span>
               <button class="reset-filter" id="resetFilterBtn"><i class="fa-regular fa-times"></i> всё</button>
             </div>
+            ${genreList.length > 0 ? `
+              <div class="genres-filter">
+                <span style="font-size:0.7rem; color:var(--text-secondary);">Фильтр по жанрам:</span>
+                <button class="genre-filter-btn ${currentGenreFilter === null ? 'active' : ''}" data-genre="">Все</button>
+                ${genreList.map(g => `<button class="genre-filter-btn ${currentGenreFilter === g ? 'active' : ''}" data-genre="${escapeHtml(g)}">${escapeHtml(g)}</button>`).join('')}
+              </div>
+            ` : ''}
             <div class="feed-list" id="feedList"></div>
           </div>
           <div class="screen" id="searchScreen">
@@ -838,6 +958,16 @@
         const type = b.getAttribute('data-type');
         currentFilter = currentFilter === type ? null : type;
         renderFeed();
+      });
+    });
+    
+    document.querySelectorAll('.genre-filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const genre = btn.getAttribute('data-genre');
+        currentGenreFilter = genre === '' ? null : genre;
+        renderFeed();
+        document.querySelectorAll('.genre-filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
       });
     });
     
