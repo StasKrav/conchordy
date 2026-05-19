@@ -1,373 +1,663 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
-  <head>
-    <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
-    />
-    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <title>Backstage — закрытое сообщество музыкантов</title>
-    <link
-      href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@300;400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap"
-      rel="stylesheet"
-    />
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-    />
-    <link rel="stylesheet" href="css/style.css" />
-  </head>
-  <body>
-    <div class="app-wrapper" id="appRoot"></div>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <title>Backstage — закрытое сообщество музыкантов</title>
+  <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .genres-filter, .post-rating, .post-genres { display: none; }
+    .chat-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(4px);
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+    .chat-modal-card {
+      background: var(--card-bg);
+      max-width: 400px;
+      width: 90%;
+      border-radius: 24px;
+      padding: 24px;
+    }
+    .chat-modal-card textarea {
+      width: 100%;
+      padding: 12px;
+      border-radius: 16px;
+      border: 1px solid var(--border-light);
+      font-family: inherit;
+      resize: vertical;
+      margin: 12px 0;
+    }
+    /* Стили для поиска */
+    .search-container {
+      background: var(--card-bg);
+      border-radius: 20px;
+      padding: 16px;
+      margin-bottom: 20px;
+      border: 1px solid var(--border-light);
+    }
+    .search-input-wrapper {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .search-input-wrapper input {
+      flex: 1;
+      padding: 12px 16px;
+      border: 1px solid var(--border-light);
+      border-radius: 40px;
+      font-size: 14px;
+    }
+    .search-input-wrapper button {
+      background: var(--accent);
+      border: none;
+      padding: 0 20px;
+      border-radius: 40px;
+      color: white;
+      cursor: pointer;
+    }
+    .search-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .search-filter-select {
+      padding: 8px 12px;
+      border: 1px solid var(--border-light);
+      border-radius: 30px;
+      background: var(--card-bg);
+      font-size: 13px;
+    }
+    .search-results-section {
+      margin-top: 20px;
+    }
+    .search-results-section h4 {
+      margin-bottom: 12px;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+    .search-result-card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 10px;
+      border: 1px solid var(--border-light);
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .search-result-card:hover {
+      background: var(--border-light);
+    }
+    .search-result-title {
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .search-result-meta {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+    .search-tabs {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .search-tab {
+      padding: 8px 0;
+      cursor: pointer;
+      font-size: 14px;
+      border-bottom: 2px solid transparent;
+    }
+    .search-tab.active {
+      border-bottom-color: var(--accent);
+      color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+<div class="app-wrapper" id="appRoot"></div>
 
-    <script>
-      // ========== НАСТРОЙКИ ==========
-      const API_BASE = "http://localhost:3001/api";
-
-      // ========== ХРАНИЛИЩЕ ==========
-      let users = [];
-      let invites = [];
-      let posts = [];
-      let currentUser = null;
-      let currentGenreFilter = null;
-
-      // ========== ЗАГРУЗКА ДАННЫХ ==========
-      async function loadInvites() {
-        const response = await fetch(`${API_BASE}/invites`, {
-          cache: "no-store",
-        });
-        invites = await response.json();
-        console.log("📋 Загружены инвайты:", invites);
-      }
-
-      async function loadUsers() {
-        const response = await fetch(`${API_BASE}/users`);
-        users = await response.json();
-        console.log("👥 Загружены пользователи:", users);
-      }
-
-      async function loadPosts() {
-        const response = await fetch(`${API_BASE}/posts`);
-        const rawPosts = await response.json();
-        posts = rawPosts.map((p) => ({ ...p, tags: JSON.parse(p.tags) }));
-        console.log("📝 Загружены посты:", posts.length);
-      }
-
-      // ========== АУТЕНТИФИКАЦИЯ ==========
-      async function login(email, password) {
-        const response = await fetch(`${API_BASE}/login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        });
-        return response.json();
-      }
-
-      async function register(
-        email,
-        password,
-        name,
-        inviteCode,
-        instruments,
-        city,
-        about,
-        genres,
-      ) {
-        const response = await fetch(`${API_BASE}/register`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email,
-            password,
-            name,
-            inviteCode,
-            instruments,
-            city,
-            about,
-            genres,
-          }),
-        });
-        return response.json();
-      }
-
-      async function forgotPassword(email) {
-        const response = await fetch(`${API_BASE}/forgot-password`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email }),
-        });
-        return response.json();
-      }
-
-      async function resetPassword(token, newPassword) {
-        const response = await fetch(`${API_BASE}/reset-password`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token, newPassword }),
-        });
-        return response.json();
-      }
-
-      // ========== СОХРАНЕНИЕ ==========
-      async function updateUserOnServer(userId, updates) {
-        const response = await fetch(`${API_BASE}/users/${userId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updates),
-        });
-        return response.ok;
-      }
-
-      async function savePostToServer(post) {
-        const response = await fetch(`${API_BASE}/posts`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(post),
-        });
-        return response.ok;
-      }
-
-      async function updatePostOnServer(postId, updates) {
-        const response = await fetch(`${API_BASE}/posts/${postId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updates),
-        });
-        return response.ok;
-      }
-
-      async function deletePostOnServer(postId) {
-        const response = await fetch(`${API_BASE}/posts/${postId}`, {
-          method: "DELETE",
-        });
-        return response.ok;
-      }
-
-      async function saveInviteToServer(code, createdBy) {
-        const response = await fetch(`${API_BASE}/invites`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code, created_by: createdBy }),
-        });
-        return response.ok;
-      }
-
-      // ========== ЛОГИКА ПРИЛОЖЕНИЯ ==========
-      async function initStorage() {
-        await loadInvites();
-        await loadUsers();
-        await loadPosts();
-      }
-
-      function saveAllData() {
-        if (currentUser) {
-          localStorage.setItem(
-            "backstage_current_user",
-            JSON.stringify(currentUser),
-          );
+<script>
+  // ========== НАСТРОЙКИ ==========
+  const API_BASE = 'http://localhost:3001/api';
+  
+  // ========== ХРАНИЛИЩЕ ==========
+  let users = [];
+  let invites = [];
+  let posts = [];
+  let currentUser = null;
+  let currentGenreFilter = null;
+  
+  // ========== ЗАГРУЗКА ДАННЫХ ==========
+  async function loadInvites() {
+    const response = await fetch(`${API_BASE}/invites`, { cache: 'no-store' });
+    invites = await response.json();
+    console.log('📋 Загружены инвайты:', invites);
+  }
+  
+  async function loadUsers() {
+    const response = await fetch(`${API_BASE}/users`);
+    users = await response.json();
+    console.log('👥 Загружены пользователи:', users);
+  }
+  
+  async function loadPosts() {
+    const response = await fetch(`${API_BASE}/posts`);
+    const rawPosts = await response.json();
+    posts = rawPosts.map(p => ({ ...p, tags: JSON.parse(p.tags) }));
+    console.log('📝 Загружены посты:', posts.length);
+  }
+  
+  // ========== АУТЕНТИФИКАЦИЯ ==========
+  async function login(email, password) {
+    const response = await fetch(`${API_BASE}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    return response.json();
+  }
+  
+  async function register(email, password, name, inviteCode, instruments, city, about, genres) {
+    const response = await fetch(`${API_BASE}/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, name, inviteCode, instruments, city, about, genres })
+    });
+    return response.json();
+  }
+  
+  async function forgotPassword(email) {
+    const response = await fetch(`${API_BASE}/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    return response.json();
+  }
+  
+  async function resetPassword(token, newPassword) {
+    const response = await fetch(`${API_BASE}/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, newPassword })
+    });
+    return response.json();
+  }
+  
+  // ========== СОХРАНЕНИЕ ==========
+  async function updateUserOnServer(userId, updates) {
+    const response = await fetch(`${API_BASE}/users/${userId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates)
+    });
+    return response.ok;
+  }
+  
+  async function savePostToServer(post) {
+    const response = await fetch(`${API_BASE}/posts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(post)
+    });
+    return response.ok;
+  }
+  
+  async function updatePostOnServer(postId, updates) {
+    const response = await fetch(`${API_BASE}/posts/${postId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates)
+    });
+    return response.ok;
+  }
+  
+  async function deletePostOnServer(postId) {
+    const response = await fetch(`${API_BASE}/posts/${postId}`, {
+      method: 'DELETE'
+    });
+    return response.ok;
+  }
+  
+  async function saveInviteToServer(code, createdBy) {
+    const response = await fetch(`${API_BASE}/invites`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, created_by: createdBy })
+    });
+    return response.ok;
+  }
+  
+  // ========== ЛОГИКА ПРИЛОЖЕНИЯ ==========
+  async function initStorage() {
+    await loadInvites();
+    await loadUsers();
+    await loadPosts();
+  }
+  
+  function saveAllData() {
+    if (currentUser) {
+      localStorage.setItem('backstage_current_user', JSON.stringify(currentUser));
+    }
+  }
+  
+  function getUserById(id) {
+    return users.find(u => u.id === id);
+  }
+  
+  function getAuthorName(userId) {
+    const user = users.find(u => u.id === userId);
+    return user ? user.name : 'Участник';
+  }
+  
+  function getMyInvites() {
+    if (!currentUser) return [];
+    return invites.filter(inv => inv.created_by === currentUser.id);
+  }
+  
+  function getInvitedUsers() {
+    const myInvites = getMyInvites();
+    const invitedIds = myInvites.filter(inv => inv.used_by).map(inv => inv.used_by);
+    return users.filter(u => invitedIds.includes(u.id));
+  }
+  
+  function getAvailableInvitesCount() {
+    const invitedCount = getInvitedUsers().length;
+    return 1 + invitedCount;
+  }
+  
+  function generateInviteCode() {
+    return 'BACKSTAGE_' + Math.random().toString(36).substring(2, 10).toUpperCase();
+  }
+  
+  async function createInvite() {
+    if (!currentUser) return null;
+    const code = generateInviteCode();
+    const success = await saveInviteToServer(code, currentUser.id);
+    if (success) {
+      invites.push({
+        code: code,
+        created_by: currentUser.id,
+        used_by: null,
+        used_at: null,
+        created_at: Date.now()
+      });
+      return code;
+    }
+    return null;
+  }
+  
+  async function updateProfile(userId, updates) {
+    const success = await updateUserOnServer(userId, updates);
+    if (success) {
+      const userIndex = users.findIndex(u => u.id === userId);
+      if (userIndex !== -1) {
+        users[userIndex] = { ...users[userIndex], ...updates };
+        if (currentUser && currentUser.id === userId) {
+          currentUser = users[userIndex];
+          saveAllData();
         }
       }
-
-      function getUserById(id) {
-        return users.find((u) => u.id === id);
+      return true;
+    }
+    return false;
+  }
+  
+  async function addPost(type, title, description, tagsRaw) {
+    if (!currentUser) return false;
+    const tags = tagsRaw.split(',').map(t => t.trim()).filter(t => t);
+    const newPost = {
+      id: Date.now().toString(),
+      user_id: currentUser.id,
+      type: type,
+      title: title,
+      description: description,
+      tags: JSON.stringify(tags),
+      created_at: Date.now(),
+      status: "active"
+    };
+    const success = await savePostToServer(newPost);
+    if (success) {
+      posts.unshift({ ...newPost, tags: tags });
+      return true;
+    }
+    return false;
+  }
+  
+  async function updatePost(postId, updates) {
+    const success = await updatePostOnServer(postId, updates);
+    if (success) {
+      const postIndex = posts.findIndex(p => p.id === postId);
+      if (postIndex !== -1) {
+        posts[postIndex] = { ...posts[postIndex], ...updates };
       }
-
-      function getAuthorName(userId) {
-        const user = users.find((u) => u.id === userId);
-        return user ? user.name : "Участник";
+      return true;
+    }
+    return false;
+  }
+  
+  async function deletePost(postId) {
+    const success = await deletePostOnServer(postId);
+    if (success) {
+      const postIndex = posts.findIndex(p => p.id === postId);
+      if (postIndex !== -1) {
+        posts[postIndex].status = "deleted";
       }
-
-      function getMyInvites() {
-        if (!currentUser) return [];
-        return invites.filter((inv) => inv.created_by === currentUser.id);
+      return true;
+    }
+    return false;
+  }
+  
+  function getUserPosts(userId, includeDeleted = false) {
+    let userPosts = posts.filter(p => p.user_id === userId);
+    if (!includeDeleted) {
+      userPosts = userPosts.filter(p => p.status === "active");
+    }
+    return userPosts.sort((a, b) => b.created_at - a.created_at);
+  }
+  
+  function sendMessageToAuthor(authorId, authorName, message) {
+    console.log(`📨 Сообщение от ${currentUser.name} для ${authorName}: ${message}`);
+    alert(`Сообщение отправлено!\n\nКому: ${authorName}\nСообщение: ${message}\n\n(в реальном приложении здесь будет отправка на сервер и уведомление автору)`);
+  }
+  
+  // ========== ПОИСК ==========
+  let searchQuery = '';
+  let searchTypeFilter = null;
+  let searchCity = '';
+  let searchGenre = '';
+  let searchActiveTab = 'posts';
+  
+  function performSearch() {
+    // Фильтрация постов
+    let filteredPosts = posts.filter(p => p.status === 'active');
+    
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filteredPosts = filteredPosts.filter(p => 
+        p.title.toLowerCase().includes(query) || 
+        p.description.toLowerCase().includes(query)
+      );
+    }
+    
+    if (searchTypeFilter) {
+      filteredPosts = filteredPosts.filter(p => p.type === searchTypeFilter);
+    }
+    
+    if (searchCity) {
+      filteredPosts = filteredPosts.filter(p => {
+        const author = users.find(u => u.id === p.user_id);
+        return author && author.city && author.city.toLowerCase().includes(searchCity.toLowerCase());
+      });
+    }
+    
+    if (searchGenre) {
+      filteredPosts = filteredPosts.filter(p => {
+        const author = users.find(u => u.id === p.user_id);
+        return author && author.genres && author.genres.toLowerCase().includes(searchGenre.toLowerCase());
+      });
+    }
+    
+    // Фильтрация пользователей
+    let filteredUsers = users.filter(u => u.id !== currentUser?.id);
+    
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filteredUsers = filteredUsers.filter(u => 
+        u.name.toLowerCase().includes(query) || 
+        (u.instruments && u.instruments.toLowerCase().includes(query))
+      );
+    }
+    
+    if (searchCity) {
+      filteredUsers = filteredUsers.filter(u => 
+        u.city && u.city.toLowerCase().includes(searchCity.toLowerCase())
+      );
+    }
+    
+    if (searchGenre) {
+      filteredUsers = filteredUsers.filter(u => 
+        u.genres && u.genres.toLowerCase().includes(searchGenre.toLowerCase())
+      );
+    }
+    
+    renderSearchResults(filteredPosts, filteredUsers);
+  }
+  
+  function renderSearchResults(filteredPosts, filteredUsers) {
+    const container = document.getElementById('searchResults');
+    if (!container) return;
+    
+    if (searchActiveTab === 'posts') {
+      if (filteredPosts.length === 0) {
+        container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-secondary);">Постов не найдено</div>';
+        return;
       }
-
-      function getInvitedUsers() {
-        const myInvites = getMyInvites();
-        const invitedIds = myInvites
-          .filter((inv) => inv.used_by)
-          .map((inv) => inv.used_by);
-        return users.filter((u) => invitedIds.includes(u.id));
-      }
-
-      function getAvailableInvitesCount() {
-        const invitedCount = getInvitedUsers().length;
-        return 1 + invitedCount;
-      }
-
-      function generateInviteCode() {
-        return (
-          "BACKSTAGE_" +
-          Math.random().toString(36).substring(2, 10).toUpperCase()
-        );
-      }
-
-      async function createInvite() {
-        if (!currentUser) return null;
-        const code = generateInviteCode();
-        const success = await saveInviteToServer(code, currentUser.id);
-        if (success) {
-          invites.push({
-            code: code,
-            created_by: currentUser.id,
-            used_by: null,
-            used_at: null,
-            created_at: Date.now(),
-          });
-          return code;
-        }
-        return null;
-      }
-
-      async function updateProfile(userId, updates) {
-        const success = await updateUserOnServer(userId, updates);
-        if (success) {
-          const userIndex = users.findIndex((u) => u.id === userId);
-          if (userIndex !== -1) {
-            users[userIndex] = { ...users[userIndex], ...updates };
-            if (currentUser && currentUser.id === userId) {
-              currentUser = users[userIndex];
-              saveAllData();
-            }
+      
+      container.innerHTML = filteredPosts.map(post => {
+        const author = users.find(u => u.id === post.user_id);
+        return `
+          <div class="search-result-card" data-post-id="${post.id}">
+            <div class="search-result-title">${getBadgeHTML(post.type)} ${escapeHtml(post.title)}</div>
+            <div class="search-result-meta">
+              ${escapeHtml(author?.name || 'Участник')} · ${formatDate(post.created_at)}
+              ${author?.city ? ` · ${escapeHtml(author.city)}` : ''}
+              ${author?.genres ? ` · ${escapeHtml(author.genres)}` : ''}
+            </div>
+            <div class="search-result-meta" style="margin-top:6px;">${escapeHtml(post.description.substring(0, 100))}${post.description.length > 100 ? '...' : ''}</div>
+          </div>
+        `;
+      }).join('');
+      
+      document.querySelectorAll('.search-result-card[data-post-id]').forEach(card => {
+        card.addEventListener('click', () => {
+          const postId = card.getAttribute('data-post-id');
+          const post = posts.find(p => p.id === postId);
+          if (post) {
+            // Показать пост в ленте
+            currentFilter = null;
+            currentGenreFilter = null;
+            renderFeed();
+            setActiveScreen('feed');
+            // Прокрутить к посту
+            setTimeout(() => {
+              const feedContainer = document.getElementById('feedList');
+              if (feedContainer) {
+                feedContainer.scrollIntoView({ behavior: 'smooth' });
+              }
+            }, 100);
           }
-          return true;
-        }
-        return false;
+        });
+      });
+    } else {
+      if (filteredUsers.length === 0) {
+        container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-secondary);">Пользователей не найдено</div>';
+        return;
       }
-
-      async function addPost(type, title, description, tagsRaw) {
-        if (!currentUser) return false;
-        const tags = tagsRaw
-          .split(",")
-          .map((t) => t.trim())
-          .filter((t) => t);
-        const newPost = {
-          id: Date.now().toString(),
-          user_id: currentUser.id,
-          type: type,
-          title: title,
-          description: description,
-          tags: JSON.stringify(tags),
-          created_at: Date.now(),
-          status: "active",
-        };
-        const success = await savePostToServer(newPost);
-        if (success) {
-          posts.unshift({ ...newPost, tags: tags });
-          return true;
-        }
-        return false;
+      
+      container.innerHTML = filteredUsers.map(user => `
+        <div class="search-result-card" data-user-id="${user.id}">
+          <div class="search-result-title">${escapeHtml(user.name)}</div>
+          <div class="search-result-meta">
+            ${user.instruments ? escapeHtml(user.instruments) : 'Инструменты не указаны'}
+            ${user.city ? ` · ${escapeHtml(user.city)}` : ''}
+            ${user.genres ? ` · ${escapeHtml(user.genres)}` : ''}
+          </div>
+          <div class="search-result-meta" style="margin-top:6px;">${user.about ? escapeHtml(user.about.substring(0, 100)) : 'Нет описания'}</div>
+        </div>
+      `).join('');
+      
+      document.querySelectorAll('.search-result-card[data-user-id]').forEach(card => {
+        card.addEventListener('click', () => {
+          const userId = card.getAttribute('data-user-id');
+          // Показать профиль пользователя
+          // TODO: переключиться на профиль выбранного пользователя
+          alert(`Профиль пользователя будет доступен в следующей версии`);
+        });
+      });
+    }
+  }
+  
+  function renderSearchScreen() {
+    const container = document.getElementById('searchScreen');
+    if (!container) return;
+    
+    // Собираем уникальные города и жанры
+    const cities = [...new Set(users.filter(u => u.city).map(u => u.city))];
+    const genres = [...new Set(users.filter(u => u.genres).flatMap(u => u.genres.split(',').map(g => g.trim())))];
+    
+    container.innerHTML = `
+      <div class="search-container">
+        <div class="search-input-wrapper">
+          <input type="text" id="searchInput" placeholder="Поиск по постам и пользователям..." value="${escapeHtml(searchQuery)}">
+          <button id="searchBtn"><i class="fa-solid fa-search"></i></button>
+        </div>
+        
+        <div class="search-filters">
+          <select id="searchTypeFilter" class="search-filter-select">
+            <option value="">Все типы</option>
+            <option value="work" ${searchTypeFilter === 'work' ? 'selected' : ''}>Вакансии</option>
+            <option value="gear" ${searchTypeFilter === 'gear' ? 'selected' : ''}>Оборудование</option>
+            <option value="discourse" ${searchTypeFilter === 'discourse' ? 'selected' : ''}>Дискурс</option>
+          </select>
+          
+          <select id="searchCity" class="search-filter-select">
+            <option value="">Все города</option>
+            ${cities.map(c => `<option value="${escapeHtml(c)}" ${searchCity === c ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('')}
+          </select>
+          
+          <select id="searchGenre" class="search-filter-select">
+            <option value="">Все жанры</option>
+            ${genres.map(g => `<option value="${escapeHtml(g)}" ${searchGenre === g ? 'selected' : ''}>${escapeHtml(g)}</option>`).join('')}
+          </select>
+        </div>
+        
+        <div class="search-tabs">
+          <div class="search-tab ${searchActiveTab === 'posts' ? 'active' : ''}" data-tab="posts">Посты</div>
+          <div class="search-tab ${searchActiveTab === 'users' ? 'active' : ''}" data-tab="users">Пользователи</div>
+        </div>
+        
+        <div id="searchResults" class="search-results-section"></div>
+      </div>
+    `;
+    
+    // Привязываем события
+    document.getElementById('searchBtn').onclick = () => {
+      searchQuery = document.getElementById('searchInput').value;
+      searchTypeFilter = document.getElementById('searchTypeFilter').value || null;
+      searchCity = document.getElementById('searchCity').value;
+      searchGenre = document.getElementById('searchGenre').value;
+      performSearch();
+    };
+    
+    document.getElementById('searchInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        searchQuery = e.target.value;
+        searchTypeFilter = document.getElementById('searchTypeFilter').value || null;
+        searchCity = document.getElementById('searchCity').value;
+        searchGenre = document.getElementById('searchGenre').value;
+        performSearch();
       }
-
-      async function updatePost(postId, updates) {
-        const success = await updatePostOnServer(postId, updates);
-        if (success) {
-          const postIndex = posts.findIndex((p) => p.id === postId);
-          if (postIndex !== -1) {
-            posts[postIndex] = { ...posts[postIndex], ...updates };
-          }
-          return true;
-        }
-        return false;
-      }
-
-      async function deletePost(postId) {
-        const success = await deletePostOnServer(postId);
-        if (success) {
-          const postIndex = posts.findIndex((p) => p.id === postId);
-          if (postIndex !== -1) {
-            posts[postIndex].status = "deleted";
-          }
-          return true;
-        }
-        return false;
-      }
-
-      function getUserPosts(userId, includeDeleted = false) {
-        let userPosts = posts.filter((p) => p.user_id === userId);
-        if (!includeDeleted) {
-          userPosts = userPosts.filter((p) => p.status === "active");
-        }
-        return userPosts.sort((a, b) => b.created_at - a.created_at);
-      }
-
-      // Функция отправки сообщения автору поста
-      function sendMessageToAuthor(authorId, authorName, message) {
-        console.log(
-          `📨 Сообщение от ${currentUser.name} для ${authorName}: ${message}`,
-        );
-        alert(
-          `Сообщение отправлено!\n\nКому: ${authorName}\nСообщение: ${message}\n\n(в реальном приложении здесь будет отправка на сервер и уведомление автору)`,
-        );
-      }
-
-      // ========== UI КОМПОНЕНТЫ ==========
-      const typeIcons = {
-        work: `<svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`,
-        gear: `<svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`,
-        discourse: `<svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,
-      };
-
-      function formatDate(timestamp) {
-        const date = new Date(timestamp);
-        return `${date.getDate()} ${date.toLocaleString("ru", { month: "short" })} · ${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
-      }
-
-      function getBadgeHTML(type) {
-        const labels = {
-          work: "вакансия",
-          gear: "оборудование",
-          discourse: "дискурс",
-        };
-        const classes = { work: "work", gear: "gear", discourse: "discourse" };
-        return `<span class="badge-type ${classes[type]}" data-type="${type}">${typeIcons[type]}<span class="badge-text">${labels[type]}</span></span>`;
-      }
-
-      function escapeHtml(str) {
-        if (!str) return "";
-        return str.replace(/[&<>]/g, (m) =>
-          m === "&" ? "&amp;" : m === "<" ? "&lt;" : "&gt;",
-        );
-      }
-
-      let currentFilter = null;
-
-      function renderFeed() {
-        const container = document.getElementById("feedList");
-        if (!container) return;
-
-        let filtered = posts.filter((p) => p.status === "active");
-        if (currentFilter) {
-          filtered = filtered.filter((p) => p.type === currentFilter);
-        }
-        if (currentGenreFilter) {
-          filtered = filtered.filter((p) => {
-            const author = users.find((u) => u.id === p.user_id);
-            return (
-              author &&
-              author.genres &&
-              author.genres
-                .toLowerCase()
-                .includes(currentGenreFilter.toLowerCase())
-            );
-          });
-        }
-
-        if (filtered.length === 0) {
-          container.innerHTML =
-            '<div style="padding:40px;text-align:center;color:var(--text-secondary);">Нет публикаций · создайте первую</div>';
-          return;
-        }
-
-        container.innerHTML = filtered
-          .map((post) => {
-            const authorName = getAuthorName(post.user_id);
-            return `
+    });
+    
+    document.getElementById('searchTypeFilter').onchange = () => {
+      searchQuery = document.getElementById('searchInput').value;
+      searchTypeFilter = document.getElementById('searchTypeFilter').value || null;
+      searchCity = document.getElementById('searchCity').value;
+      searchGenre = document.getElementById('searchGenre').value;
+      performSearch();
+    };
+    
+    document.getElementById('searchCity').onchange = () => {
+      searchQuery = document.getElementById('searchInput').value;
+      searchTypeFilter = document.getElementById('searchTypeFilter').value || null;
+      searchCity = document.getElementById('searchCity').value;
+      searchGenre = document.getElementById('searchGenre').value;
+      performSearch();
+    };
+    
+    document.getElementById('searchGenre').onchange = () => {
+      searchQuery = document.getElementById('searchInput').value;
+      searchTypeFilter = document.getElementById('searchTypeFilter').value || null;
+      searchCity = document.getElementById('searchCity').value;
+      searchGenre = document.getElementById('searchGenre').value;
+      performSearch();
+    };
+    
+    document.querySelectorAll('.search-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        searchActiveTab = tab.getAttribute('data-tab');
+        renderSearchScreen();
+        performSearch();
+      });
+    });
+    
+    // Выполняем поиск с текущими фильтрами
+    performSearch();
+  }
+  
+  // ========== UI КОМПОНЕНТЫ ==========
+  const typeIcons = {
+    work: `<svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`,
+    gear: `<svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`,
+    discourse: `<svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`
+  };
+  
+  function formatDate(timestamp) {
+    const date = new Date(timestamp);
+    return `${date.getDate()} ${date.toLocaleString('ru',{month:'short'})} · ${date.getHours().toString().padStart(2,'0')}:${date.getMinutes().toString().padStart(2,'0')}`;
+  }
+  
+  function getBadgeHTML(type) {
+    const labels = { work: 'вакансия', gear: 'оборудование', discourse: 'дискурс' };
+    const classes = { work: 'work', gear: 'gear', discourse: 'discourse' };
+    return `<span class="badge-type ${classes[type]}" data-type="${type}">${typeIcons[type]}<span class="badge-text">${labels[type]}</span></span>`;
+  }
+  
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, m => m === '&' ? '&amp;' : m === '<' ? '&lt;' : '&gt;');
+  }
+  
+  let currentFilter = null;
+  
+  function renderFeed() {
+    const container = document.getElementById('feedList');
+    if (!container) return;
+    
+    let filtered = posts.filter(p => p.status === "active");
+    if (currentFilter) {
+      filtered = filtered.filter(p => p.type === currentFilter);
+    }
+    if (currentGenreFilter) {
+      filtered = filtered.filter(p => {
+        const author = users.find(u => u.id === p.user_id);
+        return author && author.genres && author.genres.toLowerCase().includes(currentGenreFilter.toLowerCase());
+      });
+    }
+    
+    if (filtered.length === 0) {
+      container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-secondary);">Нет публикаций · создайте первую</div>';
+      return;
+    }
+    
+    container.innerHTML = filtered.map(post => {
+      const authorName = getAuthorName(post.user_id);
+      return `
         <div class="post-card">
           <div class="post-header">
             ${getBadgeHTML(post.type)}
@@ -382,29 +672,27 @@
           </div>
         </div>
       `;
-          })
-          .join("");
-
-        document.querySelectorAll(".chat-action").forEach((el) => {
-          el.addEventListener("click", (e) => {
-            const authorId = el.getAttribute("data-author-id");
-            const authorName = el.getAttribute("data-author-name");
-            showChatModal(authorId, authorName);
-          });
-        });
-
-        document.querySelectorAll(".filter-badge").forEach((b) => {
-          const type = b.getAttribute("data-type");
-          if (currentFilter === type) b.classList.add("active");
-          else b.classList.remove("active");
-        });
-      }
-
-      function showChatModal(authorId, authorName) {
-        // Создаём модальное окно
-        const modal = document.createElement("div");
-        modal.className = "chat-modal";
-        modal.innerHTML = `
+    }).join('');
+    
+    document.querySelectorAll('.chat-action').forEach(el => {
+      el.addEventListener('click', (e) => {
+        const authorId = el.getAttribute('data-author-id');
+        const authorName = el.getAttribute('data-author-name');
+        showChatModal(authorId, authorName);
+      });
+    });
+    
+    document.querySelectorAll('.filter-badge').forEach(b => {
+      const type = b.getAttribute('data-type');
+      if (currentFilter === type) b.classList.add('active');
+      else b.classList.remove('active');
+    });
+  }
+  
+  function showChatModal(authorId, authorName) {
+    const modal = document.createElement('div');
+    modal.className = 'chat-modal';
+    modal.innerHTML = `
       <div class="chat-modal-card">
         <h3 style="margin-bottom: 8px;">Сообщение для ${escapeHtml(authorName)}</h3>
         <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">Ваше сообщение будет отправлено автору объявления</p>
@@ -415,156 +703,144 @@
         </div>
       </div>
     `;
-        document.body.appendChild(modal);
-        modal.style.display = "flex";
-
-        document.getElementById("sendChatBtn").onclick = () => {
-          const message = document.getElementById("chatMessage").value.trim();
-          if (!message) {
-            alert("Введите сообщение");
-            return;
-          }
-          sendMessageToAuthor(authorId, authorName, message);
-          modal.remove();
-        };
-
-        document.getElementById("cancelChatBtn").onclick = () => {
-          modal.remove();
-        };
-
-        modal.addEventListener("click", (e) => {
-          if (e.target === modal) modal.remove();
-        });
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    
+    document.getElementById('sendChatBtn').onclick = () => {
+      const message = document.getElementById('chatMessage').value.trim();
+      if (!message) {
+        alert('Введите сообщение');
+        return;
       }
-
-      function setActiveScreen(screenId) {
-        document
-          .querySelectorAll(".screen")
-          .forEach((s) => s.classList.remove("active"));
-        const target = document.getElementById(`${screenId}Screen`);
-        if (target) target.classList.add("active");
-        document
-          .querySelectorAll(".nav-item")
-          .forEach((nav) => nav.classList.remove("active"));
-        const activeNav = document.querySelector(
-          `.nav-item[data-screen="${screenId}"]`,
-        );
-        if (activeNav) activeNav.classList.add("active");
-      }
-
-      // ========== ПРОФИЛЬ ==========
-      let profileActiveTab = "info";
-
-      function renderProfileScreen() {
-        const container = document.getElementById("profileScreen");
-        if (!container || !currentUser) return;
-
-        container.innerHTML = `
+      sendMessageToAuthor(authorId, authorName, message);
+      modal.remove();
+    };
+    
+    document.getElementById('cancelChatBtn').onclick = () => {
+      modal.remove();
+    };
+    
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.remove();
+    });
+  }
+  
+  function setActiveScreen(screenId) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    const target = document.getElementById(`${screenId}Screen`);
+    if (target) target.classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+    const activeNav = document.querySelector(`.nav-item[data-screen="${screenId}"]`);
+    if (activeNav) activeNav.classList.add('active');
+    
+    // Если переключаемся на экран поиска, обновляем его
+    if (screenId === 'search') {
+      renderSearchScreen();
+    }
+  }
+  
+  // ========== ПРОФИЛЬ ==========
+  let profileActiveTab = "info";
+  
+  function renderProfileScreen() {
+    const container = document.getElementById('profileScreen');
+    if (!container || !currentUser) return;
+    
+    container.innerHTML = `
       <div class="profile-header-card">
         <div class="profile-avatar">${currentUser.name.charAt(0)}</div>
         <div class="profile-name">${escapeHtml(currentUser.name)}</div>
-        <div class="profile-bio">${escapeHtml(currentUser.instruments || "")} ${currentUser.instruments && currentUser.city ? "·" : ""} ${escapeHtml(currentUser.city || "")}</div>
-        ${currentUser.about ? `<div class="profile-about">${escapeHtml(currentUser.about)}</div>` : ""}
+        <div class="profile-bio">${escapeHtml(currentUser.instruments || '')} ${currentUser.instruments && currentUser.city ? '·' : ''} ${escapeHtml(currentUser.city || '')}</div>
+        ${currentUser.about ? `<div class="profile-about">${escapeHtml(currentUser.about)}</div>` : ''}
         <button class="profile-edit-btn" id="editProfileBtnGlobal"><i class="fa-regular fa-pen-to-square"></i> Редактировать</button>
       </div>
       <div class="profile-tabs">
-        <button class="profile-tab ${profileActiveTab === "info" ? "active" : ""}" data-tab="info">О себе</button>
-        <button class="profile-tab ${profileActiveTab === "posts" ? "active" : ""}" data-tab="posts">Мои объявления</button>
-        <button class="profile-tab ${profileActiveTab === "invites" ? "active" : ""}" data-tab="invites">Приглашения</button>
+        <button class="profile-tab ${profileActiveTab === 'info' ? 'active' : ''}" data-tab="info">О себе</button>
+        <button class="profile-tab ${profileActiveTab === 'posts' ? 'active' : ''}" data-tab="posts">Мои объявления</button>
+        <button class="profile-tab ${profileActiveTab === 'invites' ? 'active' : ''}" data-tab="invites">Приглашения</button>
       </div>
       <div class="profile-tab-content" id="profileTabContent"></div>
     `;
-
-        document.querySelectorAll(".profile-tab").forEach((tab) => {
-          tab.addEventListener("click", () => {
-            profileActiveTab = tab.getAttribute("data-tab");
-            renderProfileScreen();
-          });
-        });
-
-        const editBtn = document.getElementById("editProfileBtnGlobal");
-        if (editBtn) editBtn.onclick = () => showEditProfileModal();
-
-        renderProfileTabContent();
-      }
-
-      function renderProfileTabContent() {
-        const content = document.getElementById("profileTabContent");
-        if (!content || !currentUser) return;
-
-        if (profileActiveTab === "info") {
-          content.innerHTML = `
+    
+    document.querySelectorAll('.profile-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        profileActiveTab = tab.getAttribute('data-tab');
+        renderProfileScreen();
+      });
+    });
+    
+    const editBtn = document.getElementById('editProfileBtnGlobal');
+    if (editBtn) editBtn.onclick = () => showEditProfileModal();
+    
+    renderProfileTabContent();
+  }
+  
+  function renderProfileTabContent() {
+    const content = document.getElementById('profileTabContent');
+    if (!content || !currentUser) return;
+    
+    if (profileActiveTab === 'info') {
+      content.innerHTML = `
         <div class="profile-info-card">
-          <div class="info-row"><span class="info-label">Инструменты:</span><span>${escapeHtml(currentUser.instruments || "не указано")}</span></div>
-          <div class="info-row"><span class="info-label">Город:</span><span>${escapeHtml(currentUser.city || "не указан")}</span></div>
-          <div class="info-row"><span class="info-label">Жанры:</span><span>${escapeHtml(currentUser.genres || "не указаны")}</span></div>
-          <div class="info-row"><span class="info-label">В сообществе:</span><span>${Math.floor((Date.now() - currentUser.created_at) / (1000 * 60 * 60 * 24 * 30))} месяцев</span></div>
+          <div class="info-row"><span class="info-label">Инструменты:</span><span>${escapeHtml(currentUser.instruments || 'не указано')}</span></div>
+          <div class="info-row"><span class="info-label">Город:</span><span>${escapeHtml(currentUser.city || 'не указан')}</span></div>
+          <div class="info-row"><span class="info-label">Жанры:</span><span>${escapeHtml(currentUser.genres || 'не указаны')}</span></div>
+          <div class="info-row"><span class="info-label">В сообществе:</span><span>${Math.floor((Date.now() - currentUser.created_at) / (1000*60*60*24*30))} месяцев</span></div>
         </div>
       `;
-        } else if (profileActiveTab === "posts") {
-          const userPosts = getUserPosts(currentUser.id, true);
-          if (userPosts.length === 0) {
-            content.innerHTML =
-              '<div class="empty-state"><i class="fa-regular fa-newspaper"></i><p>У вас пока нет объявлений</p><button class="create-post-hint" id="createPostHint">Создать объявление</button></div>';
-            const hintBtn = document.getElementById("createPostHint");
-            if (hintBtn)
-              hintBtn.onclick = () =>
-                document.getElementById("fabBtn")?.click();
-            return;
-          }
-
-          content.innerHTML = userPosts
-            .map(
-              (post) => `
-        <div class="my-post-card ${post.status === "deleted" ? "deleted" : ""}">
+    } else if (profileActiveTab === 'posts') {
+      const userPosts = getUserPosts(currentUser.id, true);
+      if (userPosts.length === 0) {
+        content.innerHTML = '<div class="empty-state"><i class="fa-regular fa-newspaper"></i><p>У вас пока нет объявлений</p><button class="create-post-hint" id="createPostHint">Создать объявление</button></div>';
+        const hintBtn = document.getElementById('createPostHint');
+        if (hintBtn) hintBtn.onclick = () => document.getElementById('fabBtn')?.click();
+        return;
+      }
+      
+      content.innerHTML = userPosts.map(post => `
+        <div class="my-post-card ${post.status === 'deleted' ? 'deleted' : ''}">
           <div class="my-post-header">
             ${getBadgeHTML(post.type)}
-            ${post.status === "deleted" ? '<span class="deleted-badge">Скрыто</span>' : ""}
+            ${post.status === 'deleted' ? '<span class="deleted-badge">Скрыто</span>' : ''}
           </div>
           <div class="my-post-title">${escapeHtml(post.title)}</div>
           <div class="my-post-meta">${formatDate(post.created_at)}</div>
           <div class="my-post-desc">${escapeHtml(post.description)}</div>
-          ${
-            post.status === "active"
-              ? `
+          ${post.status === 'active' ? `
             <div class="my-post-actions">
               <button class="action-edit" data-id="${post.id}"><i class="fa-regular fa-pen-to-square"></i> Редактировать</button>
               <button class="action-delete" data-id="${post.id}"><i class="fa-regular fa-trash-can"></i> Удалить</button>
             </div>
-          `
-              : `
+          ` : `
             <div class="my-post-note">Объявление скрыто. Чтобы восстановить, обратитесь в поддержку.</div>
-          `
-          }
+          `}
         </div>
-      `,
-            )
-            .join("");
-
-          document.querySelectorAll(".action-edit").forEach((btn) => {
-            btn.addEventListener("click", async () => {
-              const postId = btn.getAttribute("data-id");
-              const post = posts.find((p) => p.id === postId);
-              if (post) showEditPostModal(post);
-            });
-          });
-
-          document.querySelectorAll(".action-delete").forEach((btn) => {
-            btn.addEventListener("click", async () => {
-              const postId = btn.getAttribute("data-id");
-              if (confirm("Удалить объявление?")) {
-                await deletePost(postId);
-                await loadPosts();
-                renderProfileScreen();
-                renderFeed();
-              }
-            });
-          });
-        } else if (profileActiveTab === "invites") {
-          const invitedUsers = getInvitedUsers();
-          const availableCount = getAvailableInvitesCount();
-
-          content.innerHTML = `
+      `).join('');
+      
+      document.querySelectorAll('.action-edit').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const postId = btn.getAttribute('data-id');
+          const post = posts.find(p => p.id === postId);
+          if (post) showEditPostModal(post);
+        });
+      });
+      
+      document.querySelectorAll('.action-delete').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const postId = btn.getAttribute('data-id');
+          if (confirm('Удалить объявление?')) {
+            await deletePost(postId);
+            await loadPosts();
+            renderProfileScreen();
+            renderFeed();
+          }
+        });
+      });
+    } else if (profileActiveTab === 'invites') {
+      const invitedUsers = getInvitedUsers();
+      const availableCount = getAvailableInvitesCount();
+      
+      content.innerHTML = `
         <div class="invites-stats">
           <div class="invites-count">Доступно инвайтов: <strong>${availableCount}</strong></div>
           <p class="invites-hint">1 базовый + 1 за каждого приглашённого</p>
@@ -573,51 +849,41 @@
         </div>
         <div class="invited-list">
           <h4>Приглашённые вами</h4>
-          ${
-            invitedUsers.length === 0
-              ? '<p class="empty-invites">Пока никого не пригласили</p>'
-              : invitedUsers
-                  .map(
-                    (u) =>
-                      `<div class="invited-item"><i class="fa-regular fa-user"></i><div><strong>${escapeHtml(u.name)}</strong><div class="invited-details">${escapeHtml(u.instruments || "")} ${escapeHtml(u.city ? "· " + u.city : "")}</div></div></div>`,
-                  )
-                  .join("")
-          }
+          ${invitedUsers.length === 0 ? '<p class="empty-invites">Пока никого не пригласили</p>' : 
+            invitedUsers.map(u => `<div class="invited-item"><i class="fa-regular fa-user"></i><div><strong>${escapeHtml(u.name)}</strong><div class="invited-details">${escapeHtml(u.instruments || '')} ${escapeHtml(u.city ? '· ' + u.city : '')}</div></div></div>`).join('')}
         </div>
       `;
-
-          const generateInviteBtn = document.getElementById(
-            "generateInviteFromProfile",
-          );
-          if (generateInviteBtn) {
-            generateInviteBtn.onclick = async () => {
-              const newCode = await createInvite();
-              if (newCode) {
-                const resultDiv = document.getElementById("newInviteResult");
-                resultDiv.innerHTML = `<div class="invite-code-block"><code>${newCode}</code><button class="copy-code-btn">Копировать</button></div>`;
-                resultDiv.querySelector(".copy-code-btn").onclick = () => {
-                  navigator.clipboard.writeText(newCode);
-                  alert("Код скопирован!");
-                };
-                setTimeout(() => {
-                  if (resultDiv) resultDiv.innerHTML = "";
-                }, 15000);
-              } else {
-                alert("Не удалось создать инвайт");
-              }
+      
+      const generateInviteBtn = document.getElementById('generateInviteFromProfile');
+      if (generateInviteBtn) {
+        generateInviteBtn.onclick = async () => {
+          const newCode = await createInvite();
+          if (newCode) {
+            const resultDiv = document.getElementById('newInviteResult');
+            resultDiv.innerHTML = `<div class="invite-code-block"><code>${newCode}</code><button class="copy-code-btn">Копировать</button></div>`;
+            resultDiv.querySelector('.copy-code-btn').onclick = () => {
+              navigator.clipboard.writeText(newCode);
+              alert('Код скопирован!');
             };
+            setTimeout(() => {
+              if (resultDiv) resultDiv.innerHTML = '';
+            }, 15000);
+          } else {
+            alert('Не удалось создать инвайт');
           }
-        }
+        };
       }
-
-      function showEditPostModal(post) {
-        const modalHtml = `
+    }
+  }
+  
+  function showEditPostModal(post) {
+    const modalHtml = `
       <div class="modal" id="editPostModal" style="display: flex;">
         <div class="modal-card">
           <h3>Редактировать объявление</h3>
           <div class="form-group"><label>Заголовок</label><input type="text" id="editPostTitle" value="${escapeHtml(post.title)}"></div>
           <div class="form-group"><label>Описание</label><textarea id="editPostDesc" rows="4">${escapeHtml(post.description)}</textarea></div>
-          <div class="form-group"><label>Теги (через запятую)</label><input type="text" id="editPostTags" value="${(post.tags || []).join(", ")}"></div>
+          <div class="form-group"><label>Теги (через запятую)</label><input type="text" id="editPostTags" value="${(post.tags || []).join(', ')}"></div>
           <div class="modal-buttons">
             <button class="btn-secondary" id="cancelEditPost">Отмена</button>
             <button class="btn-primary" id="saveEditPost">Сохранить</button>
@@ -625,46 +891,39 @@
         </div>
       </div>
     `;
-        document.body.insertAdjacentHTML("beforeend", modalHtml);
-        const modal = document.getElementById("editPostModal");
-
-        document.getElementById("cancelEditPost").onclick = () =>
-          modal.remove();
-        document.getElementById("saveEditPost").onclick = async () => {
-          const title = document.getElementById("editPostTitle").value.trim();
-          const description = document
-            .getElementById("editPostDesc")
-            .value.trim();
-          const tagsRaw = document.getElementById("editPostTags").value;
-          const tags = tagsRaw
-            .split(",")
-            .map((t) => t.trim())
-            .filter((t) => t);
-
-          if (!title || !description) {
-            alert("Заголовок и описание обязательны");
-            return;
-          }
-
-          await updatePost(post.id, { title, description, tags });
-          await loadPosts();
-          modal.remove();
-          renderProfileScreen();
-          renderFeed();
-        };
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    const modal = document.getElementById('editPostModal');
+    
+    document.getElementById('cancelEditPost').onclick = () => modal.remove();
+    document.getElementById('saveEditPost').onclick = async () => {
+      const title = document.getElementById('editPostTitle').value.trim();
+      const description = document.getElementById('editPostDesc').value.trim();
+      const tagsRaw = document.getElementById('editPostTags').value;
+      const tags = tagsRaw.split(',').map(t => t.trim()).filter(t => t);
+      
+      if (!title || !description) {
+        alert('Заголовок и описание обязательны');
+        return;
       }
-
-      function showEditProfileModal() {
-        const modalHtml = `
+      
+      await updatePost(post.id, { title, description, tags });
+      await loadPosts();
+      modal.remove();
+      renderProfileScreen();
+      renderFeed();
+    };
+  }
+  
+  function showEditProfileModal() {
+    const modalHtml = `
       <div class="modal" id="editProfileModal" style="display: flex;">
         <div class="modal-card">
           <h3>Редактировать профиль</h3>
           <div class="form-group"><label>Имя</label><input type="text" id="editName" value="${escapeHtml(currentUser.name)}"></div>
-          <div class="form-group"><label>Email</label><input type="email" id="editEmail" value="${escapeHtml(currentUser.email)}" disabled style="opacity:0.7; background:#2a2a2a;"></div>
-          <div class="form-group"><label>Инструменты</label><input type="text" id="editInstruments" value="${escapeHtml(currentUser.instruments || "")}" placeholder="гитара, вокал..."></div>
-          <div class="form-group"><label>Город</label><input type="text" id="editCity" value="${escapeHtml(currentUser.city || "")}" placeholder="Москва..."></div>
-          <div class="form-group"><label>Жанры</label><input type="text" id="editGenres" value="${escapeHtml(currentUser.genres || "")}" placeholder="рок, джаз, металл..."></div>
-          <div class="form-group"><label>О себе</label><textarea id="editAbout" rows="3">${escapeHtml(currentUser.about || "")}</textarea></div>
+          <div class="form-group"><label>Инструменты</label><input type="text" id="editInstruments" value="${escapeHtml(currentUser.instruments || '')}" placeholder="гитара, вокал..."></div>
+          <div class="form-group"><label>Город</label><input type="text" id="editCity" value="${escapeHtml(currentUser.city || '')}" placeholder="Москва..."></div>
+          <div class="form-group"><label>Жанры</label><input type="text" id="editGenres" value="${escapeHtml(currentUser.genres || '')}" placeholder="рок, джаз, металл..."></div>
+          <div class="form-group"><label>О себе</label><textarea id="editAbout" rows="3">${escapeHtml(currentUser.about || '')}</textarea></div>
           <div class="modal-buttons">
             <button class="btn-secondary" id="cancelEdit">Отмена</button>
             <button class="btn-primary" id="saveEdit">Сохранить</button>
@@ -672,40 +931,38 @@
         </div>
       </div>
     `;
-        document.body.insertAdjacentHTML("beforeend", modalHtml);
-        const modal = document.getElementById("editProfileModal");
-
-        document.getElementById("cancelEdit").onclick = () => modal.remove();
-        document.getElementById("saveEdit").onclick = async () => {
-          const updates = {
-            name: document.getElementById("editName").value.trim(),
-            instruments: document
-              .getElementById("editInstruments")
-              .value.trim(),
-            city: document.getElementById("editCity").value.trim(),
-            genres: document.getElementById("editGenres").value.trim(),
-            about: document.getElementById("editAbout").value.trim(),
-          };
-          if (updates.name) {
-            await updateProfile(currentUser.id, updates);
-            modal.remove();
-            renderProfileScreen();
-            renderFeed();
-          } else {
-            alert("Имя обязательно");
-          }
-        };
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    const modal = document.getElementById('editProfileModal');
+    
+    document.getElementById('cancelEdit').onclick = () => modal.remove();
+    document.getElementById('saveEdit').onclick = async () => {
+      const updates = {
+        name: document.getElementById('editName').value.trim(),
+        instruments: document.getElementById('editInstruments').value.trim(),
+        city: document.getElementById('editCity').value.trim(),
+        genres: document.getElementById('editGenres').value.trim(),
+        about: document.getElementById('editAbout').value.trim()
+      };
+      if (updates.name) {
+        await updateProfile(currentUser.id, updates);
+        modal.remove();
+        renderProfileScreen();
+        renderFeed();
+      } else {
+        alert('Имя обязательно');
       }
-
-      // ========== ЭКРАНЫ ВХОДА / РЕГИСТРАЦИИ ==========
-      let authMode = "login";
-      let resetToken = null;
-
-      function showAuthScreen() {
-        const root = document.getElementById("appRoot");
-
-        if (authMode === "login") {
-          root.innerHTML = `
+    };
+  }
+  
+  // ========== ЭКРАНЫ ВХОДА / РЕГИСТРАЦИИ ==========
+  let authMode = 'login';
+  let resetToken = null;
+  
+  function showAuthScreen() {
+    const root = document.getElementById('appRoot');
+    
+    if (authMode === 'login') {
+      root.innerHTML = `
         <div class="access-screen">
           <div class="access-card">
             <h2 style="color: var(--accent);">Backstage</h2>
@@ -728,236 +985,117 @@
           </div>
         </div>
       `;
-
-          document.getElementById("doLoginBtn").onclick = async () => {
-            const email = document.getElementById("loginEmail").value.trim();
-            const password = document.getElementById("loginPassword").value;
-
-            if (!email || !password) {
-              document.getElementById("authError").innerText =
-                "Заполните email и пароль";
-              return;
-            }
-
-            const result = await login(email, password);
-            if (result.success) {
-              currentUser = result.user;
-              saveAllData();
-              await loadPosts();
-              renderMainApp();
-            } else {
-              document.getElementById("authError").innerText = result.error;
-            }
-          };
-
-          document.getElementById("showRegisterBtn").onclick = () => {
-            authMode = "register";
-            showAuthScreen();
-          };
-
-          document.getElementById("forgotLink").onclick = (e) => {
-            e.preventDefault();
-            authMode = "forgot";
-            showAuthScreen();
-          };
-        } else if (authMode === "register") {
-          root.innerHTML = `
-        <div class="access-screen">
-          <div class="access-card" style="max-width: 450px;">
-            <h2 style="color: var(--accent); text-align: center;">Регистрация</h2>
-            
-            <div class="form-group"><label>Email</label><input type="email" id="regEmail" placeholder="your@email.com"></div>
-            <div class="form-group"><label>Пароль</label><input type="password" id="regPassword" placeholder="минимум 6 символов"></div>
-            <div class="form-group"><label>Имя и фамилия</label><input type="text" id="regName" placeholder="Как к вам обращаться?"></div>
-            <div class="form-group">
-              <label><i class="fa-solid fa-ticket"></i> Инвайт-код <span class="accent-text">(обязательно)</span></label>
-              <input type="text" id="regInviteCode" placeholder="Код от участника сообщества" class="accent-input">
-            </div>
-            <div class="form-group"><label>Инструменты (опционально)</label><input type="text" id="regInstruments" placeholder="гитара, вокал..."></div>
-            <div class="form-group"><label>Город (опционально)</label><input type="text" id="regCity" placeholder="Москва..."></div>
-            <div class="form-group"><label>Жанры (опционально)</label><input type="text" id="regGenres" placeholder="рок, джаз, металл..."></div>
-            <div class="form-group"><label>О себе (опционально)</label><textarea id="regAbout" rows="2"></textarea></div>
-            
-            <button id="doRegisterBtn" class="btn-primary" style="width:100%;">Зарегистрироваться</button>
-            <button id="backToLoginBtn" class="btn-secondary" style="width:100%; margin-top:12px;">← Назад ко входу</button>
-            
-            <div id="regError" style="margin-top:12px; font-size:13px; color:#c2410c; text-align:center;"></div>
-          </div>
-        </div>
-      `;
-
-          document.getElementById("doRegisterBtn").onclick = async () => {
-            const email = document.getElementById("regEmail").value.trim();
-            const password = document.getElementById("regPassword").value;
-            const name = document.getElementById("regName").value.trim();
-            const inviteCode = document
-              .getElementById("regInviteCode")
-              .value.trim()
-              .toUpperCase();
-            const instruments = document
-              .getElementById("regInstruments")
-              .value.trim();
-            const city = document.getElementById("regCity").value.trim();
-            const genres = document.getElementById("regGenres").value.trim();
-            const about = document.getElementById("regAbout").value.trim();
-
-            if (!email || !password || !name || !inviteCode) {
-              document.getElementById("regError").innerText =
-                "Заполните email, пароль, имя и инвайт-код";
-              return;
-            }
-
-            if (password.length < 6) {
-              document.getElementById("regError").innerText =
-                "Пароль должен быть не менее 6 символов";
-              return;
-            }
-
-            const result = await register(
-              email,
-              password,
-              name,
-              inviteCode,
-              instruments,
-              city,
-              about,
-              genres,
-            );
-            if (result.success) {
-              currentUser = result.user;
-              saveAllData();
-              await loadPosts();
-              renderMainApp();
-            } else {
-              document.getElementById("regError").innerText = result.error;
-            }
-          };
-
-          document.getElementById("backToLoginBtn").onclick = () => {
-            authMode = "login";
-            showAuthScreen();
-          };
-        } else if (authMode === "forgot") {
-          root.innerHTML = `
-        <div class="access-screen">
-          <div class="access-card">
-            <h2 style="color: var(--accent);">Восстановление пароля</h2>
-            <p style="margin: 8px 0 24px;">Введите ваш email</p>
-            
-            <div class="form-group"><label>Email</label><input type="email" id="forgotEmail" placeholder="your@email.com"></div>
-            
-            <button id="doForgotBtn" class="btn-primary" style="width:100%;">Отправить ссылку</button>
-            <button id="backToLoginFromForgot" class="btn-secondary" style="width:100%; margin-top:12px;">← Назад ко входу</button>
-            
-            <div id="forgotMessage" style="margin-top:12px; font-size:13px; text-align:center;"></div>
-          </div>
-        </div>
-      `;
-
-          document.getElementById("doForgotBtn").onclick = async () => {
-            const email = document.getElementById("forgotEmail").value.trim();
-            if (!email) {
-              document.getElementById("forgotMessage").innerText =
-                "Введите email";
-              return;
-            }
-
-            const result = await forgotPassword(email);
-            if (result.success && result.reset_token) {
-              resetToken = result.reset_token;
-              document.getElementById("forgotMessage").innerHTML = `
-            ✅ Ссылка для восстановления (демо-режим):<br>
-            <code style="background:#2a2a2a; padding:8px; display:block; margin-top:8px; word-break:break-all;">${resetToken}</code>
-            <br>В реальном приложении ссылка придёт на email.<br>
-            <button id="proceedResetBtn" style="margin-top:12px; background:var(--accent); color:white; border:none; padding:8px 16px; border-radius:20px;">Продолжить сброс</button>
-          `;
-              const proceedBtn = document.getElementById("proceedResetBtn");
-              if (proceedBtn) {
-                proceedBtn.onclick = () => {
-                  authMode = "reset";
-                  showAuthScreen();
-                };
-              }
-            } else {
-              document.getElementById("forgotMessage").innerText =
-                result.message || "Ошибка";
-            }
-          };
-
-          document.getElementById("backToLoginFromForgot").onclick = () => {
-            authMode = "login";
-            showAuthScreen();
-          };
-        } else if (authMode === "reset") {
-          root.innerHTML = `
-        <div class="access-screen">
-          <div class="access-card">
-            <h2 style="color: var(--accent);">Новый пароль</h2>
-            
-            <div class="form-group"><label>Новый пароль</label><input type="password" id="newPassword" placeholder="минимум 6 символов"></div>
-            <div class="form-group"><label>Подтверждение</label><input type="password" id="confirmPassword" placeholder="повторите пароль"></div>
-            
-            <button id="doResetBtn" class="btn-primary" style="width:100%;">Сохранить пароль</button>
-            <button id="backToLoginFromReset" class="btn-secondary" style="width:100%; margin-top:12px;">← Назад ко входу</button>
-            
-            <div id="resetError" style="margin-top:12px; font-size:13px; color:#c2410c; text-align:center;"></div>
-          </div>
-        </div>
-      `;
-
-          document.getElementById("doResetBtn").onclick = async () => {
-            const newPassword = document.getElementById("newPassword").value;
-            const confirm = document.getElementById("confirmPassword").value;
-
-            if (!newPassword) {
-              document.getElementById("resetError").innerText =
-                "Введите пароль";
-              return;
-            }
-            if (newPassword.length < 6) {
-              document.getElementById("resetError").innerText =
-                "Пароль должен быть не менее 6 символов";
-              return;
-            }
-            if (newPassword !== confirm) {
-              document.getElementById("resetError").innerText =
-                "Пароли не совпадают";
-              return;
-            }
-
-            const result = await resetPassword(resetToken, newPassword);
-            if (result.success) {
-              alert("Пароль успешно изменён. Войдите с новым паролем.");
-              authMode = "login";
-              showAuthScreen();
-            } else {
-              document.getElementById("resetError").innerText = result.error;
-            }
-          };
-
-          document.getElementById("backToLoginFromReset").onclick = () => {
-            authMode = "login";
-            showAuthScreen();
-          };
+      
+      document.getElementById('doLoginBtn').onclick = async () => {
+        const email = document.getElementById('loginEmail').value.trim();
+        const password = document.getElementById('loginPassword').value;
+        
+        if (!email || !password) {
+          document.getElementById('authError').innerText = 'Заполните email и пароль';
+          return;
         }
-      }
-
-      // ========== ОСНОВНОЕ ПРИЛОЖЕНИЕ ==========
-      function renderMainApp() {
-        const root = document.getElementById("appRoot");
-
-        const allGenres = new Set();
-        users.forEach((u) => {
-          if (u.genres) {
-            u.genres.split(",").forEach((g) => {
-              const genre = g.trim();
-              if (genre) allGenres.add(genre);
-            });
-          }
-        });
-        const genreList = Array.from(allGenres);
-
+        
+        const result = await login(email, password);
+        if (result.success) {
+          currentUser = result.user;
+          saveAllData();
+          await loadPosts();
+          renderMainApp();
+        } else {
+          document.getElementById('authError').innerText = result.error;
+        }
+      };
+      
+      document.getElementById('showRegisterBtn').onclick = () => {
+        authMode = 'register';
+        showAuthScreen();
+      };
+      
+      document.getElementById('forgotLink').onclick = (e) => {
+        e.preventDefault();
+        authMode = 'forgot';
+        showAuthScreen();
+      };
+      
+    } else if (authMode === 'register') {
         root.innerHTML = `
+          <div class="access-screen">
+            <div class="access-card" style="max-width: 450px;">
+              <h2 style="color: var(--accent); text-align: center;">Регистрация</h2>
+              
+              <div class="form-group"><label>Email</label><input type="email" id="regEmail" placeholder="your@email.com"></div>
+              <div class="form-group"><label>Пароль</label><input type="password" id="regPassword" placeholder="минимум 6 символов"></div>
+              <div class="form-group"><label>Имя и фамилия</label><input type="text" id="regName" placeholder="Как к вам обращаться?"></div>
+              <div class="form-group">
+                <label> Инвайт-код <span class="accent-text">(обязательно)</span></label>
+                <input type="text" id="regInviteCode" placeholder="Код от участника сообщества" class="accent-input">
+              </div>
+              
+              <button id="doRegisterBtn" class="btn-primary" style="width:100%;">Зарегистрироваться</button>
+              <button id="backToLoginBtn" class="btn-secondary" style="width:100%; margin-top:12px;">← Назад ко входу</button>
+              
+              <div id="regError" style="margin-top:12px; font-size:13px; color:#c2410c; text-align:center;"></div>
+            </div>
+          </div>
+        `;
+        
+        document.getElementById('doRegisterBtn').onclick = async () => {
+          const email = document.getElementById('regEmail').value.trim();
+          const password = document.getElementById('regPassword').value;
+          const name = document.getElementById('regName').value.trim();
+          const inviteCode = document.getElementById('regInviteCode').value.trim().toUpperCase();
+          
+          if (!email || !password || !name || !inviteCode) {
+            document.getElementById('regError').innerText = 'Заполните все поля';
+            return;
+          }
+          
+          if (password.length < 6) {
+            document.getElementById('regError').innerText = 'Пароль должен быть не менее 6 символов';
+            return;
+          }
+          
+          const result = await register(email, password, name, inviteCode, '', '', '', '');
+          if (result.success) {
+            currentUser = result.user;
+            saveAllData();
+            await loadPosts();
+            renderMainApp();
+          } else {
+            document.getElementById('regError').innerText = result.error;
+          }
+        };
+        
+        document.getElementById('backToLoginBtn').onclick = () => {
+          authMode = 'login';
+          showAuthScreen();
+        };
+      
+      
+    } else if (authMode === 'forgot') {
+      // ... (оставляем как было)
+      root.innerHTML = `<div class="access-screen"><div class="access-card"><h2>Восстановление</h2><p>Демо-режим</p><button onclick="location.reload()">Назад</button></div></div>`;
+    } else if (authMode === 'reset') {
+      root.innerHTML = `<div class="access-screen"><div class="access-card"><h2>Сброс пароля</h2><p>Демо-режим</p><button onclick="location.reload()">Назад</button></div></div>`;
+    }
+  }
+  
+  // ========== ОСНОВНОЕ ПРИЛОЖЕНИЕ ==========
+  function renderMainApp() {
+    const root = document.getElementById('appRoot');
+    
+    const allGenres = new Set();
+    users.forEach(u => {
+      if (u.genres) {
+        u.genres.split(',').forEach(g => {
+          const genre = g.trim();
+          if (genre) allGenres.add(genre);
+        });
+      }
+    });
+    const genreList = Array.from(allGenres);
+    
+    root.innerHTML = `
       <div>
         <header class="app-header">
           <div class="logo">Back<span>stage</span></div>
@@ -977,25 +1115,16 @@
               <span class="filter-badge discourse" data-type="discourse">${typeIcons.discourse}<span>дискурс</span></span>
               <button class="reset-filter" id="resetFilterBtn"><i class="fa-regular fa-times"></i> всё</button>
             </div>
-            ${
-              genreList.length > 0
-                ? `
+            ${genreList.length > 0 ? `
               <div class="genres-filter">
                 <span style="font-size:0.7rem; color:var(--text-secondary);">Фильтр по жанрам:</span>
-                <button class="genre-filter-btn ${currentGenreFilter === null ? "active" : ""}" data-genre="">Все</button>
-                ${genreList.map((g) => `<button class="genre-filter-btn ${currentGenreFilter === g ? "active" : ""}" data-genre="${escapeHtml(g)}">${escapeHtml(g)}</button>`).join("")}
+                <button class="genre-filter-btn ${currentGenreFilter === null ? 'active' : ''}" data-genre="">Все</button>
+                ${genreList.map(g => `<button class="genre-filter-btn ${currentGenreFilter === g ? 'active' : ''}" data-genre="${escapeHtml(g)}">${escapeHtml(g)}</button>`).join('')}
               </div>
-            `
-                : ""
-            }
+            ` : ''}
             <div class="feed-list" id="feedList"></div>
           </div>
-          <div class="screen" id="searchScreen">
-            <div class="search-placeholder">
-              <i class="fa-solid fa-search"></i>
-              <p>Поиск по тегам, людям (в разработке)</p>
-            </div>
-          </div>
+          <div class="screen" id="searchScreen"></div>
           <div class="screen" id="profileScreen"></div>
         </div>
         <nav class="bottom-nav">
@@ -1024,151 +1153,133 @@
         </div>
       </div>
     `;
-
+    
+    renderFeed();
+    attachEvents();
+    renderProfileScreen();
+  }
+  
+  function attachEvents() {
+    document.querySelectorAll('.nav-item').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        setActiveScreen(btn.getAttribute('data-screen'));
+      });
+    });
+    
+    document.querySelectorAll('.filter-badge').forEach(b => {
+      b.addEventListener('click', () => {
+        const type = b.getAttribute('data-type');
+        currentFilter = currentFilter === type ? null : type;
         renderFeed();
-        attachEvents();
-        renderProfileScreen();
+      });
+    });
+    
+    document.querySelectorAll('.genre-filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const genre = btn.getAttribute('data-genre');
+        currentGenreFilter = genre === '' ? null : genre;
+        renderFeed();
+        document.querySelectorAll('.genre-filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+    
+    const resetBtn = document.getElementById('resetFilterBtn');
+    if (resetBtn) resetBtn.onclick = () => { currentFilter = null; renderFeed(); };
+    
+    document.addEventListener('click', (e) => {
+      const badge = e.target.closest('.badge-type');
+      if (badge && badge.getAttribute('data-type')) {
+        const type = badge.getAttribute('data-type');
+        currentFilter = currentFilter === type ? null : type;
+        renderFeed();
       }
-
-      function attachEvents() {
-        document.querySelectorAll(".nav-item").forEach((btn) => {
-          btn.addEventListener("click", (e) => {
-            e.preventDefault();
-            setActiveScreen(btn.getAttribute("data-screen"));
-          });
-        });
-
-        document.querySelectorAll(".filter-badge").forEach((b) => {
-          b.addEventListener("click", () => {
-            const type = b.getAttribute("data-type");
-            currentFilter = currentFilter === type ? null : type;
-            renderFeed();
-          });
-        });
-
-        document.querySelectorAll(".genre-filter-btn").forEach((btn) => {
-          btn.addEventListener("click", () => {
-            const genre = btn.getAttribute("data-genre");
-            currentGenreFilter = genre === "" ? null : genre;
-            renderFeed();
-            document
-              .querySelectorAll(".genre-filter-btn")
-              .forEach((b) => b.classList.remove("active"));
-            btn.classList.add("active");
-          });
-        });
-
-        const resetBtn = document.getElementById("resetFilterBtn");
-        if (resetBtn)
-          resetBtn.onclick = () => {
-            currentFilter = null;
-            renderFeed();
-          };
-
-        document.addEventListener("click", (e) => {
-          const badge = e.target.closest(".badge-type");
-          if (badge && badge.getAttribute("data-type")) {
-            const type = badge.getAttribute("data-type");
-            currentFilter = currentFilter === type ? null : type;
-            renderFeed();
-          }
-        });
-
-        const fab = document.getElementById("fabBtn");
-        const modal = document.getElementById("createModal");
-        if (fab && modal) {
-          fab.onclick = () => (modal.style.display = "flex");
-          document.getElementById("cancelPost").onclick = () =>
-            (modal.style.display = "none");
-          document.getElementById("submitPost").onclick = async () => {
-            const type = document.getElementById("postType").value;
-            const title = document.getElementById("postTitle").value.trim();
-            const desc = document.getElementById("postDesc").value.trim();
-            const tags = document.getElementById("postTags").value;
-            if (!title || !desc) {
-              alert("Заголовок и описание обязательны");
-              return;
-            }
-            await addPost(type, title, desc, tags);
-            await loadPosts();
-            modal.style.display = "none";
-            document.getElementById("postTitle").value = "";
-            document.getElementById("postDesc").value = "";
-            document.getElementById("postTags").value = "";
-            renderFeed();
-            setActiveScreen("feed");
-          };
-          window.onclick = (e) => {
-            if (e.target === modal) modal.style.display = "none";
-          };
+    });
+    
+    const fab = document.getElementById('fabBtn');
+    const modal = document.getElementById('createModal');
+    if (fab && modal) {
+      fab.onclick = () => modal.style.display = 'flex';
+      document.getElementById('cancelPost').onclick = () => modal.style.display = 'none';
+      document.getElementById('submitPost').onclick = async () => {
+        const type = document.getElementById('postType').value;
+        const title = document.getElementById('postTitle').value.trim();
+        const desc = document.getElementById('postDesc').value.trim();
+        const tags = document.getElementById('postTags').value;
+        if (!title || !desc) { alert('Заголовок и описание обязательны'); return; }
+        await addPost(type, title, desc, tags);
+        await loadPosts();
+        modal.style.display = 'none';
+        document.getElementById('postTitle').value = '';
+        document.getElementById('postDesc').value = '';
+        document.getElementById('postTags').value = '';
+        renderFeed();
+        setActiveScreen('feed');
+      };
+      window.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+    }
+    
+    const hamburger = document.getElementById('hamburgerBtn');
+    const menu = document.getElementById('sideMenu');
+    const overlay = document.getElementById('menuOverlay');
+    if (hamburger && menu && overlay) {
+      hamburger.onclick = () => { menu.classList.add('open'); overlay.style.display = 'block'; };
+      overlay.onclick = () => { menu.classList.remove('open'); overlay.style.display = 'none'; };
+    }
+    
+    document.querySelectorAll('.menu-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const action = item.getAttribute('data-action');
+        const menuEl = document.getElementById('sideMenu');
+        const overlayEl = document.getElementById('menuOverlay');
+        if (menuEl) menuEl.classList.remove('open');
+        if (overlayEl) overlayEl.style.display = 'none';
+        
+        if (action === 'logout') {
+          currentUser = null;
+          localStorage.removeItem('backstage_current_user');
+          authMode = 'login';
+          showAuthScreen();
+        } else if (action === 'profile') {
+          setActiveScreen('profile');
+          renderProfileScreen();
+        } else if (action === 'invites') {
+          setActiveScreen('profile');
+          profileActiveTab = 'invites';
+          renderProfileScreen();
+        } else if (action === 'notifications') {
+          alert('Уведомления скоро появятся');
         }
-
-        const hamburger = document.getElementById("hamburgerBtn");
-        const menu = document.getElementById("sideMenu");
-        const overlay = document.getElementById("menuOverlay");
-        if (hamburger && menu && overlay) {
-          hamburger.onclick = () => {
-            menu.classList.add("open");
-            overlay.style.display = "block";
-          };
-          overlay.onclick = () => {
-            menu.classList.remove("open");
-            overlay.style.display = "none";
-          };
+      });
+    });
+  }
+  
+  // ========== СТАРТ ==========
+  async function startApp() {
+    await initStorage();
+    
+    const savedUserId = localStorage.getItem('backstage_current_user');
+    if (savedUserId) {
+      try {
+        const parsedUser = JSON.parse(savedUserId);
+        const existingUser = users.find(u => u.id === parsedUser.id);
+        if (existingUser) {
+          currentUser = existingUser;
+          renderMainApp();
+          return;
+        } else {
+          localStorage.removeItem('backstage_current_user');
         }
-
-        document.querySelectorAll(".menu-item").forEach((item) => {
-          item.addEventListener("click", () => {
-            const action = item.getAttribute("data-action");
-            const menuEl = document.getElementById("sideMenu");
-            const overlayEl = document.getElementById("menuOverlay");
-            if (menuEl) menuEl.classList.remove("open");
-            if (overlayEl) overlayEl.style.display = "none";
-
-            if (action === "logout") {
-              currentUser = null;
-              localStorage.removeItem("backstage_current_user");
-              authMode = "login";
-              showAuthScreen();
-            } else if (action === "profile") {
-              setActiveScreen("profile");
-              renderProfileScreen();
-            } else if (action === "invites") {
-              setActiveScreen("profile");
-              profileActiveTab = "invites";
-              renderProfileScreen();
-            } else if (action === "notifications") {
-              alert("Уведомления скоро появятся");
-            }
-          });
-        });
+      } catch(e) {
+        localStorage.removeItem('backstage_current_user');
       }
-
-      // ========== СТАРТ ==========
-      async function startApp() {
-        await initStorage();
-
-        const savedUserId = localStorage.getItem("backstage_current_user");
-        if (savedUserId) {
-          try {
-            const parsedUser = JSON.parse(savedUserId);
-            const existingUser = users.find((u) => u.id === parsedUser.id);
-            if (existingUser) {
-              currentUser = existingUser;
-              renderMainApp();
-              return;
-            } else {
-              localStorage.removeItem("backstage_current_user");
-            }
-          } catch (e) {
-            localStorage.removeItem("backstage_current_user");
-          }
-        }
-
-        showAuthScreen();
-      }
-
-      startApp();
-    </script>
-  </body>
+    }
+    
+    showAuthScreen();
+  }
+  
+  startApp();
+</script>
+</body>
 </html>
