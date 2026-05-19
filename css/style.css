@@ -990,3 +990,153 @@ textarea#restoreCodeInput {
   resize: vertical;
   margin: 12px 0;
 }
+
+/* Стили для поиска */
+.search-container {
+  background: var(--card-bg);
+  border-radius: 20px;
+  padding: 16px;
+  margin-bottom: 20px;
+  border: 1px solid var(--border-light);
+}
+.search-input-wrapper {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.search-input-wrapper input {
+  flex: 1;
+  padding: 12px 16px;
+  border: 1px solid var(--border-light);
+  border-radius: 40px;
+  font-size: 14px;
+}
+.search-input-wrapper button {
+  background: var(--accent);
+  border: none;
+  padding: 0 20px;
+  border-radius: 40px;
+  color: white;
+  cursor: pointer;
+}
+.search-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.search-filter-select {
+  padding: 8px 12px;
+  border: 1px solid var(--border-light);
+  border-radius: 30px;
+  background: var(--card-bg);
+  font-size: 13px;
+}
+.search-results-section {
+  margin-top: 20px;
+}
+.search-results-section h4 {
+  margin-bottom: 12px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+.search-result-card {
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 14px;
+  margin-bottom: 10px;
+  border: 1px solid var(--border-light);
+  cursor: pointer;
+  transition: 0.2s;
+}
+.search-result-card:hover {
+  background: var(--border-light);
+}
+.search-result-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.search-result-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.search-tabs {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border-light);
+}
+.search-tab {
+  padding: 8px 0;
+  cursor: pointer;
+  font-size: 14px;
+  border-bottom: 2px solid transparent;
+}
+.search-tab.active {
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+}
+
+.genres-filter,
+.post-rating,
+.post-genres {
+  display: none;
+}
+.chat-modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+.chat-modal-card {
+  background: var(--card-bg);
+  max-width: 400px;
+  width: 90%;
+  border-radius: 24px;
+  padding: 24px;
+}
+.chat-modal-card textarea {
+  width: 100%;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid var(--border-light);
+  font-family: inherit;
+  resize: vertical;
+  margin: 12px 0;
+}
+.clickable-name {
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.clickable-name:hover {
+  opacity: 0.7;
+  text-decoration: underline;
+}
+.back-to-profile-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 14px;
+  margin-bottom: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.viewing-banner {
+  background: rgba(217, 108, 74, 0.15);
+  border-left: 3px solid var(--accent);
+  padding: 10px 16px;
+  font-size: 13px;
+  margin-bottom: 16px;
+  border-radius: 12px;
+  color: var(--text-secondary);
+}

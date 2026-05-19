@@ -9,7 +9,123 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="css/style.css">
-
+  <style>
+    .genres-filter, .post-rating, .post-genres { display: none; }
+    .chat-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(4px);
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+    .chat-modal-card {
+      background: var(--card-bg);
+      max-width: 400px;
+      width: 90%;
+      border-radius: 24px;
+      padding: 24px;
+    }
+    .chat-modal-card textarea {
+      width: 100%;
+      padding: 12px;
+      border-radius: 16px;
+      border: 1px solid var(--border-light);
+      font-family: inherit;
+      resize: vertical;
+      margin: 12px 0;
+    }
+    /* Стили для поиска */
+    .search-container {
+      background: var(--card-bg);
+      border-radius: 20px;
+      padding: 16px;
+      margin-bottom: 20px;
+      border: 1px solid var(--border-light);
+    }
+    .search-input-wrapper {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .search-input-wrapper input {
+      flex: 1;
+      padding: 12px 16px;
+      border: 1px solid var(--border-light);
+      border-radius: 40px;
+      font-size: 14px;
+    }
+    .search-input-wrapper button {
+      background: var(--accent);
+      border: none;
+      padding: 0 20px;
+      border-radius: 40px;
+      color: white;
+      cursor: pointer;
+    }
+    .search-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .search-filter-select {
+      padding: 8px 12px;
+      border: 1px solid var(--border-light);
+      border-radius: 30px;
+      background: var(--card-bg);
+      font-size: 13px;
+    }
+    .search-results-section {
+      margin-top: 20px;
+    }
+    .search-results-section h4 {
+      margin-bottom: 12px;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+    .search-result-card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 10px;
+      border: 1px solid var(--border-light);
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .search-result-card:hover {
+      background: var(--border-light);
+    }
+    .search-result-title {
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .search-result-meta {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+    .search-tabs {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .search-tab {
+      padding: 8px 0;
+      cursor: pointer;
+      font-size: 14px;
+      border-bottom: 2px solid transparent;
+    }
+    .search-tab.active {
+      border-bottom-color: var(--accent);
+      color: var(--accent);
+    }
+  </style>
 </head>
 <body>
 <div class="app-wrapper" id="appRoot"></div>
@@ -24,7 +140,6 @@
   let posts = [];
   let currentUser = null;
   let currentGenreFilter = null;
-  let viewingUserId = null; // ID пользователя, чей профиль смотрим
   
   // ========== ЗАГРУЗКА ДАННЫХ ==========
   async function loadInvites() {
@@ -260,134 +375,6 @@
     alert(`Сообщение отправлено!\n\nКому: ${authorName}\nСообщение: ${message}\n\n(в реальном приложении здесь будет отправка на сервер и уведомление автору)`);
   }
   
-  function showChatModal(authorId, authorName) {
-    const modal = document.createElement('div');
-    modal.className = 'chat-modal';
-    modal.innerHTML = `
-      <div class="chat-modal-card">
-        <h3 style="margin-bottom: 8px;">Сообщение для ${escapeHtml(authorName)}</h3>
-        <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">Ваше сообщение будет отправлено автору объявления</p>
-        <textarea id="chatMessage" rows="4" placeholder="Напишите своё предложение, вопрос или приглашение..."></textarea>
-        <div style="display: flex; gap: 12px; margin-top: 12px;">
-          <button id="sendChatBtn" class="btn-primary" style="flex:1;">Отправить</button>
-          <button id="cancelChatBtn" class="btn-secondary" style="flex:1;">Отмена</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(modal);
-    modal.style.display = 'flex';
-    
-    document.getElementById('sendChatBtn').onclick = () => {
-      const message = document.getElementById('chatMessage').value.trim();
-      if (!message) {
-        alert('Введите сообщение');
-        return;
-      }
-      sendMessageToAuthor(authorId, authorName, message);
-      modal.remove();
-    };
-    
-    document.getElementById('cancelChatBtn').onclick = () => {
-      modal.remove();
-    };
-    
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) modal.remove();
-    });
-  }
-  
-  // ========== ПРОСМОТР ПРОФИЛЯ ПОЛЬЗОВАТЕЛЯ ==========
-  function viewUserProfile(userId) {
-    viewingUserId = userId;
-    renderUserProfileScreen();
-    setActiveScreen('profile');
-  }
-  
-  function renderUserProfileScreen() {
-    const user = users.find(u => u.id === viewingUserId);
-    if (!user) return;
-    
-    const container = document.getElementById('profileScreen');
-    if (!container) return;
-    
-    const rating = user.rating || 0;
-    const genres = user.genres || '';
-    const genreList = genres ? genres.split(',').map(g => g.trim()) : [];
-    const daysInCommunity = Math.floor((Date.now() - user.created_at) / (1000 * 60 * 60 * 24));
-    
-    container.innerHTML = `
-      <div style="margin-bottom: 16px;">
-        <button id="backFromProfileBtn" class="back-to-profile-btn">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M19 12H5M12 19l-7-7 7-7"/>
-          </svg>
-          Назад
-        </button>
-      </div>
-      <div class="profile-header-card">
-        <div class="profile-avatar">${user.name.charAt(0)}</div>
-        <div class="profile-name">${escapeHtml(user.name)}</div>
-        <div class="profile-bio">${escapeHtml(user.instruments || 'Инструменты не указаны')} ${user.instruments && user.city ? '·' : ''} ${escapeHtml(user.city || 'Город не указан')}</div>
-        ${genreList.length > 0 ? `<div class="profile-genres">${genreList.map(g => `<span class="genre-badge">${escapeHtml(g)}</span>`).join('')}</div>` : ''}
-        <div class="profile-rating" style="margin-top: 8px;">
-           <strong>${rating}</strong> очков репутации
-          <span style="margin-left: 16px;"> в сообществе ${daysInCommunity} дней</span>
-        </div>
-        ${user.about ? `<div class="profile-about" style="margin-top: 16px;">${escapeHtml(user.about)}</div>` : ''}
-        <button class="profile-edit-btn" id="messageToUserBtn" style="margin-top: 20px;">
-          <i class="fa-regular fa-message"></i> Написать сообщение
-        </button>
-      </div>
-    `;
-    
-    // Кнопка «Назад» — возвращает на предыдущий экран
-    document.getElementById('backFromProfileBtn').onclick = () => {
-      viewingUserId = null;
-      // Возвращаемся на ленту (или можно запоминать, откуда пришли)
-      setActiveScreen('feed');
-      renderFeed();
-    };
-    
-    document.getElementById('messageToUserBtn').onclick = () => {
-      showChatModal(user.id, user.name);
-    };
-  }
-  
-  function renderUserProfileTabContent(tab, user) {
-    const content = document.getElementById('profileTabContent');
-    if (!content) return;
-    
-    if (tab === 'info') {
-      content.innerHTML = `
-        <div class="profile-info-card">
-          <div class="info-row"><span class="info-label">Инструменты:</span><span>${escapeHtml(user.instruments || 'не указано')}</span></div>
-          <div class="info-row"><span class="info-label">Город:</span><span>${escapeHtml(user.city || 'не указан')}</span></div>
-          <div class="info-row"><span class="info-label">Жанры:</span><span>${escapeHtml(user.genres || 'не указаны')}</span></div>
-          <div class="info-row"><span class="info-label">В сообществе:</span><span>${Math.floor((Date.now() - user.created_at) / (1000*60*60*24*30))} месяцев</span></div>
-          <div class="info-row"><span class="info-label">Рейтинг:</span><span><i class="fa-solid fa-star rating-star"></i> ${user.rating || 0}</span></div>
-        </div>
-      `;
-    } else if (tab === 'posts') {
-      const userPosts = getUserPosts(user.id, true);
-      if (userPosts.length === 0) {
-        content.innerHTML = '<div class="empty-state"><i class="fa-regular fa-newspaper"></i><p>У пользователя пока нет объявлений</p></div>';
-        return;
-      }
-      
-      content.innerHTML = userPosts.map(post => `
-        <div class="my-post-card ${post.status === 'deleted' ? 'deleted' : ''}">
-          <div class="my-post-header">
-            ${getBadgeHTML(post.type)}
-            ${post.status === 'deleted' ? '<span class="deleted-badge">Скрыто</span>' : ''}
-          </div>
-          <div class="my-post-title">${escapeHtml(post.title)}</div>
-          <div class="my-post-meta">${formatDate(post.created_at)}</div>
-          <div class="my-post-desc">${escapeHtml(post.description)}</div>
-        </div>
-      `).join('');
-    }
-  }
-  
   // ========== ПОИСК ==========
   let searchQuery = '';
   let searchTypeFilter = null;
@@ -396,6 +383,7 @@
   let searchActiveTab = 'posts';
   
   function performSearch() {
+    // Фильтрация постов
     let filteredPosts = posts.filter(p => p.status === 'active');
     
     if (searchQuery) {
@@ -424,6 +412,7 @@
       });
     }
     
+    // Фильтрация пользователей
     let filteredUsers = users.filter(u => u.id !== currentUser?.id);
     
     if (searchQuery) {
@@ -465,7 +454,7 @@
           <div class="search-result-card" data-post-id="${post.id}">
             <div class="search-result-title">${getBadgeHTML(post.type)} ${escapeHtml(post.title)}</div>
             <div class="search-result-meta">
-              <span class="clickable-name" data-user-id="${post.user_id}">${escapeHtml(author?.name || 'Участник')}</span> · ${formatDate(post.created_at)}
+              ${escapeHtml(author?.name || 'Участник')} · ${formatDate(post.created_at)}
               ${author?.city ? ` · ${escapeHtml(author.city)}` : ''}
               ${author?.genres ? ` · ${escapeHtml(author.genres)}` : ''}
             </div>
@@ -475,28 +464,23 @@
       }).join('');
       
       document.querySelectorAll('.search-result-card[data-post-id]').forEach(card => {
-        card.addEventListener('click', (e) => {
-          if (e.target.classList.contains('clickable-name')) return;
+        card.addEventListener('click', () => {
           const postId = card.getAttribute('data-post-id');
           const post = posts.find(p => p.id === postId);
           if (post) {
+            // Показать пост в ленте
             currentFilter = null;
             currentGenreFilter = null;
             renderFeed();
             setActiveScreen('feed');
+            // Прокрутить к посту
             setTimeout(() => {
               const feedContainer = document.getElementById('feedList');
-              if (feedContainer) feedContainer.scrollIntoView({ behavior: 'smooth' });
+              if (feedContainer) {
+                feedContainer.scrollIntoView({ behavior: 'smooth' });
+              }
             }, 100);
           }
-        });
-      });
-      
-      document.querySelectorAll('.clickable-name').forEach(el => {
-        el.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const userId = el.getAttribute('data-user-id');
-          viewUserProfile(userId);
         });
       });
     } else {
@@ -507,7 +491,7 @@
       
       container.innerHTML = filteredUsers.map(user => `
         <div class="search-result-card" data-user-id="${user.id}">
-          <div class="search-result-title clickable-name" data-user-id="${user.id}">${escapeHtml(user.name)}</div>
+          <div class="search-result-title">${escapeHtml(user.name)}</div>
           <div class="search-result-meta">
             ${user.instruments ? escapeHtml(user.instruments) : 'Инструменты не указаны'}
             ${user.city ? ` · ${escapeHtml(user.city)}` : ''}
@@ -517,19 +501,12 @@
         </div>
       `).join('');
       
-      document.querySelectorAll('.search-result-card').forEach(card => {
-        card.addEventListener('click', (e) => {
-          if (e.target.classList.contains('clickable-name')) return;
+      document.querySelectorAll('.search-result-card[data-user-id]').forEach(card => {
+        card.addEventListener('click', () => {
           const userId = card.getAttribute('data-user-id');
-          viewUserProfile(userId);
-        });
-      });
-      
-      document.querySelectorAll('.clickable-name').forEach(el => {
-        el.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const userId = el.getAttribute('data-user-id');
-          viewUserProfile(userId);
+          // Показать профиль пользователя
+          // TODO: переключиться на профиль выбранного пользователя
+          alert(`Профиль пользователя будет доступен в следующей версии`);
         });
       });
     }
@@ -539,6 +516,7 @@
     const container = document.getElementById('searchScreen');
     if (!container) return;
     
+    // Собираем уникальные города и жанры
     const cities = [...new Set(users.filter(u => u.city).map(u => u.city))];
     const genres = [...new Set(users.filter(u => u.genres).flatMap(u => u.genres.split(',').map(g => g.trim())))];
     
@@ -577,6 +555,7 @@
       </div>
     `;
     
+    // Привязываем события
     document.getElementById('searchBtn').onclick = () => {
       searchQuery = document.getElementById('searchInput').value;
       searchTypeFilter = document.getElementById('searchTypeFilter').value || null;
@@ -627,6 +606,7 @@
       });
     });
     
+    // Выполняем поиск с текущими фильтрами
     performSearch();
   }
   
@@ -681,7 +661,7 @@
         <div class="post-card">
           <div class="post-header">
             ${getBadgeHTML(post.type)}
-            <span class="verified-mark clickable-name" data-user-id="${post.user_id}">${escapeHtml(authorName)} · проверен</span>
+            <span class="verified-mark">${escapeHtml(authorName)} · проверен</span>
           </div>
           <div class="post-title">${escapeHtml(post.title)}</div>
           <div class="post-meta">${formatDate(post.created_at)}</div>
@@ -696,18 +676,9 @@
     
     document.querySelectorAll('.chat-action').forEach(el => {
       el.addEventListener('click', (e) => {
-        e.stopPropagation();
         const authorId = el.getAttribute('data-author-id');
         const authorName = el.getAttribute('data-author-name');
         showChatModal(authorId, authorName);
-      });
-    });
-    
-    document.querySelectorAll('.clickable-name').forEach(el => {
-      el.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const userId = el.getAttribute('data-user-id');
-        if (userId) viewUserProfile(userId);
       });
     });
     
@@ -715,6 +686,42 @@
       const type = b.getAttribute('data-type');
       if (currentFilter === type) b.classList.add('active');
       else b.classList.remove('active');
+    });
+  }
+  
+  function showChatModal(authorId, authorName) {
+    const modal = document.createElement('div');
+    modal.className = 'chat-modal';
+    modal.innerHTML = `
+      <div class="chat-modal-card">
+        <h3 style="margin-bottom: 8px;">Сообщение для ${escapeHtml(authorName)}</h3>
+        <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">Ваше сообщение будет отправлено автору объявления</p>
+        <textarea id="chatMessage" rows="4" placeholder="Напишите своё предложение, вопрос или приглашение..."></textarea>
+        <div style="display: flex; gap: 12px; margin-top: 12px;">
+          <button id="sendChatBtn" class="btn-primary" style="flex:1;">Отправить</button>
+          <button id="cancelChatBtn" class="btn-secondary" style="flex:1;">Отмена</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    
+    document.getElementById('sendChatBtn').onclick = () => {
+      const message = document.getElementById('chatMessage').value.trim();
+      if (!message) {
+        alert('Введите сообщение');
+        return;
+      }
+      sendMessageToAuthor(authorId, authorName, message);
+      modal.remove();
+    };
+    
+    document.getElementById('cancelChatBtn').onclick = () => {
+      modal.remove();
+    };
+    
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.remove();
     });
   }
   
@@ -726,43 +733,24 @@
     const activeNav = document.querySelector(`.nav-item[data-screen="${screenId}"]`);
     if (activeNav) activeNav.classList.add('active');
     
-    if (screenId === 'feed' || screenId === 'search' || screenId === 'profile') {
-      viewingUserId = null;
-    }
-    
+    // Если переключаемся на экран поиска, обновляем его
     if (screenId === 'search') {
       renderSearchScreen();
     }
   }
   
-  // ========== ПРОФИЛЬ (СВОЙ) ==========
+  // ========== ПРОФИЛЬ ==========
   let profileActiveTab = "info";
   
   function renderProfileScreen() {
-  	if (document.querySelector('.nav-item.active')?.getAttribute('data-screen') === 'profile') {
-  	    viewingUserId = null;
-  	  }
     const container = document.getElementById('profileScreen');
     if (!container || !currentUser) return;
-    
-    if (viewingUserId && viewingUserId !== currentUser.id) {
-      renderUserProfileScreen();
-      return;
-    }
-    
-    const rating = currentUser.rating || 0;
-    const genres = currentUser.genres || '';
-    const genreList = genres ? genres.split(',').map(g => g.trim()) : [];
     
     container.innerHTML = `
       <div class="profile-header-card">
         <div class="profile-avatar">${currentUser.name.charAt(0)}</div>
         <div class="profile-name">${escapeHtml(currentUser.name)}</div>
         <div class="profile-bio">${escapeHtml(currentUser.instruments || '')} ${currentUser.instruments && currentUser.city ? '·' : ''} ${escapeHtml(currentUser.city || '')}</div>
-        <div class="profile-rating">
-          <i class="fa-solid fa-star rating-star"></i> <strong>${rating}</strong> <span style="font-size:12px;">очков репутации</span>
-        </div>
-        ${genreList.length > 0 ? `<div class="profile-genres">${genreList.map(g => `<span class="genre-badge">${escapeHtml(g)}</span>`).join('')}</div>` : ''}
         ${currentUser.about ? `<div class="profile-about">${escapeHtml(currentUser.about)}</div>` : ''}
         <button class="profile-edit-btn" id="editProfileBtnGlobal"><i class="fa-regular fa-pen-to-square"></i> Редактировать</button>
       </div>
@@ -797,8 +785,7 @@
           <div class="info-row"><span class="info-label">Инструменты:</span><span>${escapeHtml(currentUser.instruments || 'не указано')}</span></div>
           <div class="info-row"><span class="info-label">Город:</span><span>${escapeHtml(currentUser.city || 'не указан')}</span></div>
           <div class="info-row"><span class="info-label">Жанры:</span><span>${escapeHtml(currentUser.genres || 'не указаны')}</span></div>
-          <div class="info-row"><span class="info-label">В сообществе:</span><span>${Math.floor((Date.now() - currentUser.created_at) / (1000*60*60*24))} дней</span></div>
-          <div class="info-row"><span class="info-label">Рейтинг:</span><span><i class="fa-solid fa-star rating-star"></i> ${currentUser.rating || 0}</span></div>
+          <div class="info-row"><span class="info-label">В сообществе:</span><span>${Math.floor((Date.now() - currentUser.created_at) / (1000*60*60*24*30))} месяцев</span></div>
         </div>
       `;
     } else if (profileActiveTab === 'posts') {
@@ -933,7 +920,6 @@
         <div class="modal-card">
           <h3>Редактировать профиль</h3>
           <div class="form-group"><label>Имя</label><input type="text" id="editName" value="${escapeHtml(currentUser.name)}"></div>
-          <!-- <div class="form-group"><label>Email</label><input type="email" id="editEmail" value="${escapeHtml(currentUser.email)}" disabled style="opacity:0.7; background:#2a2a2a;"></div> -->
           <div class="form-group"><label>Инструменты</label><input type="text" id="editInstruments" value="${escapeHtml(currentUser.instruments || '')}" placeholder="гитара, вокал..."></div>
           <div class="form-group"><label>Город</label><input type="text" id="editCity" value="${escapeHtml(currentUser.city || '')}" placeholder="Москва..."></div>
           <div class="form-group"><label>Жанры</label><input type="text" id="editGenres" value="${escapeHtml(currentUser.genres || '')}" placeholder="рок, джаз, металл..."></div>
@@ -1032,60 +1018,62 @@
       };
       
     } else if (authMode === 'register') {
-      root.innerHTML = `
-        <div class="access-screen">
-          <div class="access-card" style="max-width: 450px;">
-            <h2 style="color: var(--accent); text-align: center;">Регистрация</h2>
-            
-            <div class="form-group"><label>Email</label><input type="email" id="regEmail" placeholder="your@email.com"></div>
-            <div class="form-group"><label>Пароль</label><input type="password" id="regPassword" placeholder="минимум 6 символов"></div>
-            <div class="form-group"><label>Имя и фамилия</label><input type="text" id="regName" placeholder="Как к вам обращаться?"></div>
-            <div class="form-group">
-              <label> Инвайт-код <span class="accent-text">(обязательно)</span></label>
-              <input type="text" id="regInviteCode" placeholder="Код от участника сообщества" class="accent-input">
+        root.innerHTML = `
+          <div class="access-screen">
+            <div class="access-card" style="max-width: 450px;">
+              <h2 style="color: var(--accent); text-align: center;">Регистрация</h2>
+              
+              <div class="form-group"><label>Email</label><input type="email" id="regEmail" placeholder="your@email.com"></div>
+              <div class="form-group"><label>Пароль</label><input type="password" id="regPassword" placeholder="минимум 6 символов"></div>
+              <div class="form-group"><label>Имя и фамилия</label><input type="text" id="regName" placeholder="Как к вам обращаться?"></div>
+              <div class="form-group">
+                <label> Инвайт-код <span class="accent-text">(обязательно)</span></label>
+                <input type="text" id="regInviteCode" placeholder="Код от участника сообщества" class="accent-input">
+              </div>
+              
+              <button id="doRegisterBtn" class="btn-primary" style="width:100%;">Зарегистрироваться</button>
+              <button id="backToLoginBtn" class="btn-secondary" style="width:100%; margin-top:12px;">← Назад ко входу</button>
+              
+              <div id="regError" style="margin-top:12px; font-size:13px; color:#c2410c; text-align:center;"></div>
             </div>
-            
-            <button id="doRegisterBtn" class="btn-primary" style="width:100%;">Зарегистрироваться</button>
-            <button id="backToLoginBtn" class="btn-secondary" style="width:100%; margin-top:12px;">← Назад ко входу</button>
-            
-            <div id="regError" style="margin-top:12px; font-size:13px; color:#c2410c; text-align:center;"></div>
           </div>
-        </div>
-      `;
+        `;
+        
+        document.getElementById('doRegisterBtn').onclick = async () => {
+          const email = document.getElementById('regEmail').value.trim();
+          const password = document.getElementById('regPassword').value;
+          const name = document.getElementById('regName').value.trim();
+          const inviteCode = document.getElementById('regInviteCode').value.trim().toUpperCase();
+          
+          if (!email || !password || !name || !inviteCode) {
+            document.getElementById('regError').innerText = 'Заполните все поля';
+            return;
+          }
+          
+          if (password.length < 6) {
+            document.getElementById('regError').innerText = 'Пароль должен быть не менее 6 символов';
+            return;
+          }
+          
+          const result = await register(email, password, name, inviteCode, '', '', '', '');
+          if (result.success) {
+            currentUser = result.user;
+            saveAllData();
+            await loadPosts();
+            renderMainApp();
+          } else {
+            document.getElementById('regError').innerText = result.error;
+          }
+        };
+        
+        document.getElementById('backToLoginBtn').onclick = () => {
+          authMode = 'login';
+          showAuthScreen();
+        };
       
-      document.getElementById('doRegisterBtn').onclick = async () => {
-        const email = document.getElementById('regEmail').value.trim();
-        const password = document.getElementById('regPassword').value;
-        const name = document.getElementById('regName').value.trim();
-        const inviteCode = document.getElementById('regInviteCode').value.trim().toUpperCase();
-        
-        if (!email || !password || !name || !inviteCode) {
-          document.getElementById('regError').innerText = 'Заполните все поля';
-          return;
-        }
-        
-        if (password.length < 6) {
-          document.getElementById('regError').innerText = 'Пароль должен быть не менее 6 символов';
-          return;
-        }
-        
-        const result = await register(email, password, name, inviteCode, '', '', '', '');
-        if (result.success) {
-          currentUser = result.user;
-          saveAllData();
-          await loadPosts();
-          renderMainApp();
-        } else {
-          document.getElementById('regError').innerText = result.error;
-        }
-      };
-      
-      document.getElementById('backToLoginBtn').onclick = () => {
-        authMode = 'login';
-        showAuthScreen();
-      };
       
     } else if (authMode === 'forgot') {
+      // ... (оставляем как было)
       root.innerHTML = `<div class="access-screen"><div class="access-card"><h2>Восстановление</h2><p>Демо-режим</p><button onclick="location.reload()">Назад</button></div></div>`;
     } else if (authMode === 'reset') {
       root.innerHTML = `<div class="access-screen"><div class="access-card"><h2>Сброс пароля</h2><p>Демо-режим</p><button onclick="location.reload()">Назад</button></div></div>`;
@@ -1172,30 +1160,10 @@
   }
   
   function attachEvents() {
-    const navItems = document.querySelectorAll('.nav-item');
-    navItems.forEach(btn => {
+    document.querySelectorAll('.nav-item').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.preventDefault();
-        const screen = btn.getAttribute('data-screen');
-        
-        // Снимаем активный класс со всех кнопок
-        navItems.forEach(nav => nav.classList.remove('active'));
-        btn.classList.add('active');
-        
-        // Показываем нужный экран
-        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        const targetScreen = document.getElementById(`${screen}Screen`);
-        if (targetScreen) targetScreen.classList.add('active');
-        
-        // Специальная обработка для профиля
-        if (screen === 'profile') {
-          viewingUserId = null;
-          renderProfileScreen();
-        }
-        
-        if (screen === 'search') {
-          renderSearchScreen();
-        }
+        setActiveScreen(btn.getAttribute('data-screen'));
       });
     });
     
@@ -1274,11 +1242,9 @@
           authMode = 'login';
           showAuthScreen();
         } else if (action === 'profile') {
-          viewingUserId = null;
           setActiveScreen('profile');
           renderProfileScreen();
         } else if (action === 'invites') {
-          viewingUserId = null;
           setActiveScreen('profile');
           profileActiveTab = 'invites';
           renderProfileScreen();
@@ -1317,4 +1283,3 @@
 </script>
 </body>
 </html>
-
