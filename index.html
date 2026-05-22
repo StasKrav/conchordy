@@ -24,7 +24,7 @@
   let posts = [];
   let currentUser = null;
   let currentGenreFilter = null;
-  let viewingUserId = null; // ID пользователя, чей профиль смотрим
+  let viewingUserId = null;
   
   // ========== ЗАГРУЗКА ДАННЫХ ==========
   async function loadInvites() {
@@ -79,6 +79,17 @@
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token, newPassword })
+    });
+    return response.json();
+  }
+  
+  async function uploadAudio(file) {
+    const formData = new FormData();
+    formData.append('audio', file);
+    
+    const response = await fetch(`${API_BASE}/upload-audio`, {
+      method: 'POST',
+      body: formData
     });
     return response.json();
   }
@@ -202,7 +213,7 @@
     return false;
   }
   
-  async function addPost(type, title, description, tagsRaw) {
+  async function addPost(type, title, description, tagsRaw, audioUrl) {
     if (!currentUser) return false;
     const tags = tagsRaw.split(',').map(t => t.trim()).filter(t => t);
     const newPost = {
@@ -212,6 +223,7 @@
       title: title,
       description: description,
       tags: JSON.stringify(tags),
+      audio_url: audioUrl || null,
       created_at: Date.now(),
       status: "active"
     };
@@ -340,10 +352,8 @@
       </div>
     `;
     
-    // Кнопка «Назад» — возвращает на предыдущий экран
     document.getElementById('backFromProfileBtn').onclick = () => {
       viewingUserId = null;
-      // Возвращаемся на ленту (или можно запоминать, откуда пришли)
       setActiveScreen('feed');
       renderFeed();
     };
@@ -677,6 +687,8 @@
     
     container.innerHTML = filtered.map(post => {
       const authorName = getAuthorName(post.user_id);
+      const hasAudio = post.audio_url && post.audio_url !== '';
+      
       return `
         <div class="post-card">
           <div class="post-header">
@@ -686,6 +698,16 @@
           <div class="post-title">${escapeHtml(post.title)}</div>
           <div class="post-meta">${formatDate(post.created_at)}</div>
           <div class="post-desc">${escapeHtml(post.description)}</div>
+          ${hasAudio ? `
+            <div class="demo-player">
+              <button class="play-demo-btn" data-audio-url="${post.audio_url}">
+                <i class="fa-solid fa-music"></i> <span class="demo-time">00:00 / 00:00</span>
+              </button>
+              <audio class="demo-audio" preload="none" style="display: none;">
+                <source src="${post.audio_url}" type="audio/mpeg">
+              </audio>
+            </div>
+          ` : ''}
           <hr />
           <div class="chat-action" data-author-id="${post.user_id}" data-author-name="${escapeHtml(authorName)}">
             <i class="fa-regular fa-message"></i> Написать в чат
@@ -693,6 +715,51 @@
         </div>
       `;
     }).join('');
+    
+    // Инициализация аудиоплееров
+    document.querySelectorAll('.play-demo-btn').forEach(btn => {
+      const demoDiv = btn.parentElement;
+      const audio = demoDiv.querySelector('.demo-audio');
+      if (!audio) return;
+      
+      // Получаем длительность
+      audio.addEventListener('loadedmetadata', () => {
+        const minutes = Math.floor(audio.duration / 60);
+        const seconds = Math.floor(audio.duration % 60);
+        btn.querySelector('.demo-time').innerHTML = `00:00 / ${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
+      });
+      
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (audio.paused) {
+          // Останавливаем все другие аудио
+          document.querySelectorAll('.demo-audio').forEach(a => {
+            if (a !== audio && !a.paused) {
+              a.pause();
+              const otherBtn = a.closest('.demo-player')?.querySelector('.play-demo-btn');
+              if (otherBtn) otherBtn.innerHTML = '<i class="fa-solid fa-music"></i> <span class="demo-time">00:00 / 00:00</span>';
+            }
+          });
+          audio.play();
+          btn.innerHTML = '<i class="fa-solid fa-pause"></i> <span class="demo-time">00:00 / 00:00</span>';
+        } else {
+          audio.pause();
+          btn.innerHTML = '<i class="fa-solid fa-music"></i> <span class="demo-time">00:00 / 00:00</span>';
+        }
+      });
+      
+      audio.addEventListener('timeupdate', () => {
+        const currentMinutes = Math.floor(audio.currentTime / 60);
+        const currentSeconds = Math.floor(audio.currentTime % 60);
+        const totalMinutes = Math.floor(audio.duration / 60);
+        const totalSeconds = Math.floor(audio.duration % 60);
+        btn.querySelector('.demo-time').innerHTML = `${currentMinutes.toString().padStart(2,'0')}:${currentSeconds.toString().padStart(2,'0')} / ${totalMinutes.toString().padStart(2,'0')}:${totalSeconds.toString().padStart(2,'0')}`;
+      });
+      
+      audio.addEventListener('ended', () => {
+        btn.innerHTML = '<i class="fa-solid fa-music"></i> <span class="demo-time">00:00 / 00:00</span>';
+      });
+    });
     
     document.querySelectorAll('.chat-action').forEach(el => {
       el.addEventListener('click', (e) => {
@@ -933,7 +1000,6 @@
         <div class="modal-card">
           <h3>Редактировать профиль</h3>
           <div class="form-group"><label>Имя</label><input type="text" id="editName" value="${escapeHtml(currentUser.name)}"></div>
-          <!-- <div class="form-group"><label>Email</label><input type="email" id="editEmail" value="${escapeHtml(currentUser.email)}" disabled style="opacity:0.7; background:#2a2a2a;"></div> -->
           <div class="form-group"><label>Инструменты</label><input type="text" id="editInstruments" value="${escapeHtml(currentUser.instruments || '')}" placeholder="гитара, вокал..."></div>
           <div class="form-group"><label>Город</label><input type="text" id="editCity" value="${escapeHtml(currentUser.city || '')}" placeholder="Москва..."></div>
           <div class="form-group"><label>Жанры</label><input type="text" id="editGenres" value="${escapeHtml(currentUser.genres || '')}" placeholder="рок, джаз, металл..."></div>
@@ -1152,8 +1218,20 @@
             <div class="form-group"><label>Заголовок</label><input id="postTitle" placeholder="например: Ищем басиста"></div>
             <div class="form-group"><label>Описание</label><textarea id="postDesc" rows="3" placeholder="Подробности, условия..."></textarea></div>
             <div class="form-group"><label>Теги (через запятую)</label><input id="postTags" placeholder="гитара, сессия, студия"></div>
+            <div class="form-group">
+              <label>Демо (MP3, до 5 MB)</label>
+              <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 12px;">
+                <label class="custom-file-upload">
+                   Выбрать файл
+                  <input type="file" id="postAudio" accept="audio/mpeg" style="display: none;">
+                </label>
+                <span id="audioFileName" class="file-name">Файл не выбран</span>
+              </div>
+              <div id="audioUploadProgress" class="audio-upload-progress"></div>
+            </div>
             <div class="modal-buttons"><button class="btn-secondary" id="cancelPost">Отмена</button><button class="btn-primary" id="submitPost">Опубликовать</button></div>
           </div>
+        </div>
         </div>
         <div class="menu-overlay" id="menuOverlay"></div>
         <div class="side-menu" id="sideMenu">
@@ -1171,23 +1249,20 @@
     renderProfileScreen();
   }
   
-  function attachEvents() {
+  async function attachEvents() {
     const navItems = document.querySelectorAll('.nav-item');
     navItems.forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.preventDefault();
         const screen = btn.getAttribute('data-screen');
         
-        // Снимаем активный класс со всех кнопок
         navItems.forEach(nav => nav.classList.remove('active'));
         btn.classList.add('active');
         
-        // Показываем нужный экран
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         const targetScreen = document.getElementById(`${screen}Screen`);
         if (targetScreen) targetScreen.classList.add('active');
         
-        // Специальная обработка для профиля
         if (screen === 'profile') {
           viewingUserId = null;
           renderProfileScreen();
@@ -1234,21 +1309,60 @@
     if (fab && modal) {
       fab.onclick = () => modal.style.display = 'flex';
       document.getElementById('cancelPost').onclick = () => modal.style.display = 'none';
+      
+      let uploadedAudioUrl = null;
+      const audioInput = document.getElementById('postAudio');
+      const progressDiv = document.getElementById('audioUploadProgress');
+      
+      audioInput.addEventListener('change', async (e) => {
+      	const fileNameSpan = document.getElementById('audioFileName');
+      	if (fileNameSpan && file) {
+      	  fileNameSpan.textContent = file.name;
+      	}
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        if (file.size > 5 * 1024 * 1024) {
+          progressDiv.innerHTML = '<span style="color:#c2410c;">Файл больше 5 MB</span>';
+          audioInput.value = '';
+          return;
+        }
+        
+        progressDiv.innerHTML = '⏳ Загрузка...';
+        const result = await uploadAudio(file);
+        if (result.success) {
+          uploadedAudioUrl = result.audioUrl;
+          progressDiv.innerHTML = '✅ Демо загружено';
+        } else {
+          progressDiv.innerHTML = '<span style="color:#c2410c;">Ошибка загрузки</span>';
+          audioInput.value = '';
+        }
+      });
+      
       document.getElementById('submitPost').onclick = async () => {
         const type = document.getElementById('postType').value;
         const title = document.getElementById('postTitle').value.trim();
         const desc = document.getElementById('postDesc').value.trim();
         const tags = document.getElementById('postTags').value;
-        if (!title || !desc) { alert('Заголовок и описание обязательны'); return; }
-        await addPost(type, title, desc, tags);
+        
+        if (!title || !desc) { 
+          alert('Заголовок и описание обязательны'); 
+          return; 
+        }
+        
+        await addPost(type, title, desc, tags, uploadedAudioUrl);
         await loadPosts();
         modal.style.display = 'none';
         document.getElementById('postTitle').value = '';
         document.getElementById('postDesc').value = '';
         document.getElementById('postTags').value = '';
+        audioInput.value = '';
+        uploadedAudioUrl = null;
+        progressDiv.innerHTML = '';
         renderFeed();
         setActiveScreen('feed');
       };
+      
       window.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
     }
     
@@ -1317,4 +1431,3 @@
 </script>
 </body>
 </html>
-

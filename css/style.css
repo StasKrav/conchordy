@@ -1140,3 +1140,59 @@ textarea#restoreCodeInput {
   border-radius: 12px;
   color: var(--text-secondary);
 }
+
+.custom-file-upload {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: white;
+  color: var(--accent);
+  padding: 10px 16px;
+  border-radius: 40px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: 0.2s;
+  border: 1px solid var(--accent);
+}
+
+.custom-file-upload:hover {
+  background: var(--accent);
+  color: white;
+  transform: translateY(-1px);
+}
+
+.custom-file-upload i {
+  font-size: 14px;
+}
+
+.file-name {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-left: 12px;
+}
+
+    .demo-player {
+      margin: 8px 0;
+    }
+    .play-demo-btn {
+      background: none;
+      border: 1px solid var(--border-light);
+      padding: 6px 14px;
+      border-radius: 30px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      transition: 0.2s;
+    }
+    .play-demo-btn:hover {
+      background: rgba(217, 108, 74, 0.1);
+      border-color: var(--accent);
+    }
+    .audio-upload-progress {
+      font-size: 12px;
+      margin-top: 4px;
+      color: var(--text-secondary);
+    }
