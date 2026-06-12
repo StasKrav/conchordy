@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <title>Backstage — закрытое сообщество музыкантов</title>
+  <title>ChiusoCLub — закрытое сообщество музыкантов</title>
   <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -177,7 +177,7 @@
   }
   
   function generateInviteCode() {
-    return 'BACKSTAGE_' + Math.random().toString(36).substring(2, 10).toUpperCase();
+    return 'CHIUSOCLUB_' + Math.random().toString(36).substring(2, 10).toUpperCase();
   }
   
   async function createInvite() {
@@ -642,9 +642,19 @@
   
   // ========== UI КОМПОНЕНТЫ ==========
   const typeIcons = {
-    work: `<svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`,
-    gear: `<svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`,
-    discourse: `<svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`
+    work: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2.2" y="6.2" width="19.6" height="13.6" rx="2"/>
+      <path d="M8.1 6.2 Q12 2.3 15.9 6.2"/>
+    </svg>
+    `,
+    gear: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+      <path d="M12 19v3"/>
+    </svg>`,
+    discourse: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </svg>`
   };
   
   function formatDate(timestamp) {
@@ -1045,7 +1055,7 @@
       root.innerHTML = `
         <div class="access-screen">
           <div class="access-card">
-            <h2 style="color: var(--accent);">Backstage</h2>
+            <h2 style="color: var(--accent);">ChiusoClub</h2>
             <p style="margin: 8px 0 24px;">закрытое сообщество музыкантов</p>
             
             <div class="form-group"><label>Email</label><input type="email" id="loginEmail" placeholder="your@email.com"></div>
@@ -1176,8 +1186,18 @@
     root.innerHTML = `
       <div>
         <header class="app-header">
-          <div class="logo">Back<span>stage</span></div>
-          <button class="hamburger" id="hamburgerBtn">
+          <div class="logo" style="display: flex; align-items: flex-end; gap: 8px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="-20 -20 200 200" width="36" height="36">
+              <path fill="none" stroke="#d96c4a" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" 
+                    d="M 160.70997,58.064358 A 58.699776,57.871372 0 0 1 110.9398,115.26219 58.699776,57.871372 0 0 1 46.027222,75.466614 58.699776,57.871372 0 0 1 76.047947,6.1611009 58.699776,57.871372 0 0 1 150.09424,24.870704" 
+                    transform="matrix(0.94565764,0.325164,-0.33590158,0.94189709,0,0)"/>
+              <path fill="none" stroke="#d96c4a" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" 
+                    d="m -75.342331,-42.141541 a 34.257706,33.912876 0 0 1 -25.391159,32.7573235 34.257706,33.912876 0 0 1 -38.53459,-15.8008855 34.257706,33.912876 0 0 1 5.44419,-40.936463 34.257706,33.912876 0 0 1 41.352708,-5.389386" 
+                    transform="matrix(-0.88582572,-0.4640181,0.47738135,-0.87869622,0,0)"/>
+            </svg>
+            <span style="line-height: 1;">Chiuso<span style="color: var(--accent);">Club</span></span>
+          </div>
+          <button class="hamburger" id="hamburgerBtn" style="display: flex; align-items: flex-end; justify-content: center;">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
               <circle cx="12" cy="6" r="1.5" fill="currentColor" stroke="none"/>
               <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>
@@ -1191,7 +1211,13 @@
               <span class="filter-badge work" data-type="work">${typeIcons.work}<span>вакансия</span></span>
               <span class="filter-badge gear" data-type="gear">${typeIcons.gear}<span>оборудование</span></span>
               <span class="filter-badge discourse" data-type="discourse">${typeIcons.discourse}<span>дискурс</span></span>
-              <button class="reset-filter" id="resetFilterBtn"><i class="fa-regular fa-times"></i> всё</button>
+              <button class="reset-filter" id="resetFilterBtn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 6 6 18"/>
+                <path d="m6 6 12 12"/>
+              </svg> 
+              всё 
+              </button>
             </div>
             ${genreList.length > 0 ? `
               <div class="genres-filter">
@@ -1315,24 +1341,23 @@
       const progressDiv = document.getElementById('audioUploadProgress');
       
       audioInput.addEventListener('change', async (e) => {
-      	const fileNameSpan = document.getElementById('audioFileName');
-      	if (fileNameSpan && file) {
-      	  fileNameSpan.textContent = file.name;
-      	}
-        const file = e.target.files[0];
-        if (!file) return;
+        const selectedFile = e.target.files[0];
+        if (!selectedFile) return;
         
-        if (file.size > 5 * 1024 * 1024) {
+        if (selectedFile.size > 5 * 1024 * 1024) {
           progressDiv.innerHTML = '<span style="color:#c2410c;">Файл больше 5 MB</span>';
           audioInput.value = '';
           return;
         }
         
         progressDiv.innerHTML = '⏳ Загрузка...';
-        const result = await uploadAudio(file);
+        const result = await uploadAudio(selectedFile);
         if (result.success) {
           uploadedAudioUrl = result.audioUrl;
-          progressDiv.innerHTML = '✅ Демо загружено';
+          progressDiv.innerHTML = 'Демо загружено';
+          // Показываем имя файла
+          const fileNameSpan = document.getElementById('audioFileName');
+          if (fileNameSpan) fileNameSpan.textContent = selectedFile.name;
         } else {
           progressDiv.innerHTML = '<span style="color:#c2410c;">Ошибка загрузки</span>';
           audioInput.value = '';
