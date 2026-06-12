@@ -83,6 +83,28 @@ db.run(`CREATE TABLE IF NOT EXISTS posts (
   status TEXT
 )`);
 
+// ===== ТАБЛИЦЫ ДЛЯ ТАЙМКОД-КОММЕНТАРИЕВ =====
+db.run(`CREATE TABLE IF NOT EXISTS timeline_comments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  post_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  timestamp_seconds REAL NOT NULL,
+  comment_text TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY (post_id) REFERENCES posts(id),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+)`);
+
+db.run(`CREATE TABLE IF NOT EXISTS comment_likes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  comment_id INTEGER NOT NULL,
+  user_id TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  UNIQUE(comment_id, user_id)
+)`);
+
+console.log('✅ Таблицы timeline_comments и comment_likes готовы');
+
 // Автоматическое добавление колонок, если их нет
 db.all("PRAGMA table_info(posts)", (err, columns) => {
   if (err) return console.error(err);
@@ -326,6 +348,156 @@ app.post('/api/reset-password', async (req, res) => {
           res.json({ success: true });
         });
     });
+});
+
+// ========== API ТАЙМКОД-КОММЕНТАРИЕВ ==========
+
+// Получить все комментарии к посту с информацией о лайках
+app.get('/api/timeline-comments/:postId', (req, res) => {
+  const { postId } = req.params;
+  const userId = req.query.userId || null;
+  
+  let query = `
+    SELECT 
+      tc.id,
+      tc.post_id,
+      tc.user_id,
+      tc.timestamp_seconds,
+      tc.comment_text,
+      tc.created_at,
+      u.name as author_name,
+      (SELECT COUNT(*) FROM comment_likes WHERE comment_id = tc.id) as likes_count
+  `;
+  
+  // Если передан userId, проверяем, лайкнул ли пользователь этот комментарий
+  if (userId) {
+    query += `,
+      (SELECT COUNT(*) > 0 FROM comment_likes WHERE comment_id = tc.id AND user_id = ?) as is_liked
+    `;
+  }
+  
+  query += `
+    FROM timeline_comments tc
+    JOIN users u ON tc.user_id = u.id
+    WHERE tc.post_id = ?
+    ORDER BY tc.timestamp_seconds ASC
+  `;
+  
+  const params = userId ? [userId, postId] : [postId];
+  
+  db.all(query, params, (err, rows) => {
+    if (err) {
+      console.error('Ошибка загрузки комментариев:', err);
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(rows || []);
+  });
+});
+
+// Добавить новый комментарий
+app.post('/api/timeline-comments', (req, res) => {
+  const { post_id, user_id, timestamp_seconds, comment_text } = req.body;
+  
+  if (!post_id || !user_id || timestamp_seconds === undefined || !comment_text) {
+    return res.status(400).json({ error: 'Не все поля заполнены' });
+  }
+  
+  db.run(
+    `INSERT INTO timeline_comments (post_id, user_id, timestamp_seconds, comment_text, created_at)
+     VALUES (?, ?, ?, ?, ?)`,
+    [post_id, user_id, timestamp_seconds, comment_text.trim(), Date.now()],
+    function(err) {
+      if (err) {
+        console.error('Ошибка добавления комментария:', err);
+        return res.status(500).json({ error: err.message });
+      }
+      
+      // Возвращаем созданный комментарий с именем автора
+      db.get(
+        `SELECT tc.*, u.name as author_name,
+         (SELECT COUNT(*) FROM comment_likes WHERE comment_id = tc.id) as likes_count,
+         0 as is_liked
+         FROM timeline_comments tc
+         JOIN users u ON tc.user_id = u.id
+         WHERE tc.id = ?`,
+        [this.lastID],
+        (err, comment) => {
+          if (err) return res.status(500).json({ error: err.message });
+          res.json(comment);
+        }
+      );
+    }
+  );
+});
+
+// Лайк/анлайк комментария (toggle)
+app.post('/api/comment-likes/:commentId', (req, res) => {
+  const { commentId } = req.params;
+  const { user_id } = req.body;
+  
+  if (!user_id) {
+    return res.status(400).json({ error: 'Не указан пользователь' });
+  }
+  
+  // Проверяем, есть ли уже лайк
+  db.get(
+    `SELECT id FROM comment_likes WHERE comment_id = ? AND user_id = ?`,
+    [commentId, user_id],
+    (err, existing) => {
+      if (err) return res.status(500).json({ error: err.message });
+      
+      if (existing) {
+        // Удаляем лайк
+        db.run(
+          `DELETE FROM comment_likes WHERE comment_id = ? AND user_id = ?`,
+          [commentId, user_id],
+          (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true, action: 'unliked' });
+          }
+        );
+      } else {
+        // Добавляем лайк
+        db.run(
+          `INSERT INTO comment_likes (comment_id, user_id, created_at) VALUES (?, ?, ?)`,
+          [commentId, user_id, Date.now()],
+          (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true, action: 'liked' });
+          }
+        );
+      }
+    }
+  );
+});
+
+// Удалить комментарий (только для автора)
+app.delete('/api/timeline-comments/:commentId', (req, res) => {
+  const { commentId } = req.params;
+  const { user_id } = req.body;
+  
+  db.get(
+    `SELECT user_id FROM timeline_comments WHERE id = ?`,
+    [commentId],
+    (err, comment) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!comment) return res.status(404).json({ error: 'Комментарий не найден' });
+      if (comment.user_id !== user_id) {
+        return res.status(403).json({ error: 'Нет прав на удаление' });
+      }
+      
+      // Сначала удаляем лайки комментария
+      db.run(`DELETE FROM comment_likes WHERE comment_id = ?`, [commentId], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        // Затем удаляем сам комментарий
+        db.run(`DELETE FROM timeline_comments WHERE id = ?`, [commentId], (err) => {
+          if (err) return res.status(500).json({ error: err.message });
+          res.json({ success: true });
+        });
+      });
+    }
+  );
 });
 
 app.listen(port, () => {

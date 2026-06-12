@@ -7,6 +7,10 @@
   <title>ChiusoCLub — закрытое сообщество музыкантов</title>
   <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+  <!-- WaveSurfer.js для визуализации аудио -->
+  <script src="https://unpkg.com/wavesurfer.js@7.4.0/dist/wavesurfer.min.js"></script>
+  <!-- Дата-пикер для комментариев (опционально) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="css/style.css">
 
@@ -709,14 +713,7 @@
           <div class="post-meta">${formatDate(post.created_at)}</div>
           <div class="post-desc">${escapeHtml(post.description)}</div>
           ${hasAudio ? `
-            <div class="demo-player">
-              <button class="play-demo-btn" data-audio-url="${post.audio_url}">
-                <i class="fa-solid fa-music"></i> <span class="demo-time">00:00 / 00:00</span>
-              </button>
-              <audio class="demo-audio" preload="none" style="display: none;">
-                <source src="${post.audio_url}" type="audio/mpeg">
-              </audio>
-            </div>
+            <div class="timeline-placeholder" data-post-id="${post.id}" data-audio-url="${post.audio_url}"></div>
           ` : ''}
           <hr />
           <div class="chat-action" data-author-id="${post.user_id}" data-author-name="${escapeHtml(authorName)}">
@@ -726,50 +723,6 @@
       `;
     }).join('');
     
-    // Инициализация аудиоплееров
-    document.querySelectorAll('.play-demo-btn').forEach(btn => {
-      const demoDiv = btn.parentElement;
-      const audio = demoDiv.querySelector('.demo-audio');
-      if (!audio) return;
-      
-      // Получаем длительность
-      audio.addEventListener('loadedmetadata', () => {
-        const minutes = Math.floor(audio.duration / 60);
-        const seconds = Math.floor(audio.duration % 60);
-        btn.querySelector('.demo-time').innerHTML = `00:00 / ${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
-      });
-      
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (audio.paused) {
-          // Останавливаем все другие аудио
-          document.querySelectorAll('.demo-audio').forEach(a => {
-            if (a !== audio && !a.paused) {
-              a.pause();
-              const otherBtn = a.closest('.demo-player')?.querySelector('.play-demo-btn');
-              if (otherBtn) otherBtn.innerHTML = '<i class="fa-solid fa-music"></i> <span class="demo-time">00:00 / 00:00</span>';
-            }
-          });
-          audio.play();
-          btn.innerHTML = '<i class="fa-solid fa-pause"></i> <span class="demo-time">00:00 / 00:00</span>';
-        } else {
-          audio.pause();
-          btn.innerHTML = '<i class="fa-solid fa-music"></i> <span class="demo-time">00:00 / 00:00</span>';
-        }
-      });
-      
-      audio.addEventListener('timeupdate', () => {
-        const currentMinutes = Math.floor(audio.currentTime / 60);
-        const currentSeconds = Math.floor(audio.currentTime % 60);
-        const totalMinutes = Math.floor(audio.duration / 60);
-        const totalSeconds = Math.floor(audio.duration % 60);
-        btn.querySelector('.demo-time').innerHTML = `${currentMinutes.toString().padStart(2,'0')}:${currentSeconds.toString().padStart(2,'0')} / ${totalMinutes.toString().padStart(2,'0')}:${totalSeconds.toString().padStart(2,'0')}`;
-      });
-      
-      audio.addEventListener('ended', () => {
-        btn.innerHTML = '<i class="fa-solid fa-music"></i> <span class="demo-time">00:00 / 00:00</span>';
-      });
-    });
     
     document.querySelectorAll('.chat-action').forEach(el => {
       el.addEventListener('click', (e) => {
@@ -792,6 +745,25 @@
       const type = b.getAttribute('data-type');
       if (currentFilter === type) b.classList.add('active');
       else b.classList.remove('active');
+    });
+
+    // Инициализация таймкод-комментариев (после существующего кода аудиоплееров)
+    document.querySelectorAll('.timeline-placeholder').forEach(async (placeholder) => {
+      const postId = placeholder.getAttribute('data-post-id');
+      const audioUrl = placeholder.getAttribute('data-audio-url');
+      
+      // Проверяем, не инициализирован ли уже
+      if (placeholder.hasAttribute('data-initialized')) return;
+      placeholder.setAttribute('data-initialized', 'true');
+      
+      // Небольшая задержка, чтобы DOM точно отрисовался
+      setTimeout(() => {
+        try {
+          const timeline = new TimelineComments(postId, audioUrl, placeholder);
+        } catch(e) {
+          console.error('Ошибка инициализации комментариев для поста', postId, e);
+        }
+      }, 100);
     });
   }
   
@@ -1427,6 +1399,385 @@
       });
     });
   }
+
+  // ========== МОДУЛЬ ТАЙМКОД-КОММЕНТАРИЕВ ==========
+  class TimelineComments {
+    constructor(postId, audioUrl, containerElement) {
+      this.postId = postId;
+      this.audioUrl = audioUrl;
+      this.container = containerElement;
+      this.wavesurfer = null;
+      this.comments = [];
+      this.currentTime = 0;
+      // Запускаем инициализацию
+      this.init();
+    }
+  
+    formatTime(seconds) {
+      if (isNaN(seconds) || seconds === undefined) return '0:00';
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+  
+    formatDate(timestamp) {
+      const date = new Date(timestamp);
+      const now = new Date();
+      const diff = now - date;
+      if (diff < 3600000) return `${Math.floor(diff / 60000)} мин назад`;
+      if (diff < 86400000) return `${Math.floor(diff / 3600000)} ч назад`;
+      return `${date.getDate()} ${date.toLocaleString('ru', { month: 'short' })}`;
+    }
+  
+    async loadComments() {
+      try {
+        const url = `${API_BASE}/timeline-comments/${this.postId}${currentUser ? `?userId=${currentUser.id}` : ''}`;
+        const response = await fetch(url);
+        if (response.ok) {
+          this.comments = await response.json();
+          console.log(`📝 Загружено ${this.comments.length} комментариев для поста ${this.postId}`);
+        } else {
+          this.comments = [];
+        }
+      } catch (e) {
+        console.error('Ошибка загрузки комментариев:', e);
+        this.comments = [];
+      }
+    }
+  
+    async addComment(timestamp, text) {
+      if (!currentUser) {
+        alert('Войдите в аккаунт, чтобы комментировать');
+        return false;
+      }
+      if (!text.trim()) return false;
+  
+      try {
+        const response = await fetch(`${API_BASE}/timeline-comments`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            post_id: this.postId,
+            user_id: currentUser.id,
+            timestamp_seconds: timestamp,
+            comment_text: text.trim()
+          })
+        });
+  
+        if (response.ok) {
+          const newComment = await response.json();
+          this.comments.push(newComment);
+          this.renderCommentsList();
+          return true;
+        } else {
+          const error = await response.json();
+          alert('Ошибка: ' + (error.error || 'Не удалось добавить комментарий'));
+        }
+      } catch (e) {
+        console.error('Ошибка добавления комментария:', e);
+        alert('Ошибка соединения');
+      }
+      return false;
+    }
+  
+    async likeComment(commentId) {
+      if (!currentUser) {
+        alert('Войдите в аккаунт');
+        return;
+      }
+  
+      try {
+        const response = await fetch(`${API_BASE}/comment-likes/${commentId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: currentUser.id })
+        });
+  
+        if (response.ok) {
+          await this.loadComments();
+          this.renderCommentsList();
+        }
+      } catch (e) {
+        console.error('Ошибка лайка:', e);
+      }
+    }
+  
+    async deleteComment(commentId) {
+      if (!currentUser) return;
+      if (!confirm('Удалить комментарий?')) return;
+  
+      try {
+        const response = await fetch(`${API_BASE}/timeline-comments/${commentId}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: currentUser.id })
+        });
+  
+        if (response.ok) {
+          await this.loadComments();
+          this.renderCommentsList();
+        } else {
+          const error = await response.json();
+          alert('Ошибка: ' + (error.error || 'Не удалось удалить'));
+        }
+      } catch (e) {
+        console.error('Ошибка удаления:', e);
+      }
+    }
+  
+    seekToTime(seconds) {
+      if (this.wavesurfer) {
+        const duration = this.wavesurfer.getDuration();
+        if (duration > 0) {
+          this.wavesurfer.seekTo(seconds / duration);
+          this.wavesurfer.play();
+        }
+      }
+    }
+  
+    updateTimeBadge() {
+      const badge = this.container.querySelector('.current-time-value');
+      if (badge) badge.textContent = this.formatTime(this.currentTime);
+    }
+  
+    updatePlayButtonIcon() {
+      const playBtn = this.container.querySelector('.waveform-play-btn');
+      if (playBtn && this.wavesurfer) {
+        const icon = playBtn.querySelector('i');
+        if (icon) {
+          icon.className = this.wavesurfer.isPlaying() ? 'fa-solid fa-pause' : 'fa-solid fa-play';
+        }
+      }
+    }
+  
+    initWaveSurfer() {
+      const waveformDiv = this.container.querySelector('#waveform');
+      if (!waveformDiv) {
+        console.error('Waveform контейнер не найден');
+        return;
+      }
+  
+      if (typeof WaveSurfer === 'undefined') {
+        console.error('WaveSurfer не загружен');
+        return;
+      }
+  
+      this.wavesurfer = WaveSurfer.create({
+        container: waveformDiv,
+        waveColor: '#d4cdc4',
+        progressColor: '#d96c4a',
+        cursorColor: '#d96c4a',
+        barWidth: 2,
+        barGap: 1,
+        height: 80,
+        normalize: true,
+        responsive: true
+      });
+  
+      this.wavesurfer.load(this.audioUrl);
+  
+      this.wavesurfer.on('ready', () => {
+        const duration = this.wavesurfer.getDuration();
+        const totalSpan = this.container.querySelector('.total-time-value');
+        if (totalSpan) totalSpan.textContent = `/ ${this.formatTime(duration)}`;
+        console.log('🎵 Waveform готов');
+      });
+  
+      this.wavesurfer.on('audioprocess', () => {
+        this.currentTime = this.wavesurfer.getCurrentTime();
+        this.updateTimeBadge();
+        this.updatePlayButtonIcon();
+      });
+  
+      this.wavesurfer.on('finish', () => {
+        this.updatePlayButtonIcon();
+      });
+  
+      // Клик по волне для добавления комментария
+      waveformDiv.addEventListener('click', async (e) => {
+        if (!this.wavesurfer) return;
+        const rect = waveformDiv.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const percentage = Math.max(0, Math.min(1, clickX / rect.width));
+        const seconds = percentage * this.wavesurfer.getDuration();
+        
+        const comment = prompt(`Добавить комментарий на ${this.formatTime(seconds)}:`, '');
+        if (comment) {
+          await this.addComment(seconds, comment);
+        }
+      });
+  
+      // Тултип при наведении
+      waveformDiv.addEventListener('mousemove', (e) => {
+        if (!this.wavesurfer || !this.wavesurfer.getDuration()) return;
+        const rect = waveformDiv.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const percentage = Math.max(0, Math.min(1, clickX / rect.width));
+        const seconds = percentage * this.wavesurfer.getDuration();
+        
+        let tooltip = waveformDiv.querySelector('.waveform-tooltip');
+        if (!tooltip) {
+          tooltip = document.createElement('div');
+          tooltip.className = 'waveform-tooltip';
+          waveformDiv.style.position = 'relative';
+          waveformDiv.appendChild(tooltip);
+        }
+        tooltip.textContent = this.formatTime(seconds);
+        tooltip.style.left = `${clickX}px`;
+        tooltip.style.top = '-20px';
+      });
+  
+      waveformDiv.addEventListener('mouseleave', () => {
+        const tooltip = waveformDiv.querySelector('.waveform-tooltip');
+        if (tooltip) tooltip.remove();
+      });
+    }
+  
+    renderCommentsList() {
+      const listContainer = this.container.querySelector('.timeline-comments-list');
+      if (!listContainer) return;
+  
+      if (this.comments.length === 0) {
+        listContainer.innerHTML = '<div class="timeline-empty">🎧 Кликните на волну, чтобы оставить комментарий к моменту в треке</div>';
+        return;
+      }
+  
+      const sortedComments = [...this.comments].sort((a, b) => a.timestamp_seconds - b.timestamp_seconds);
+      
+      listContainer.innerHTML = sortedComments.map(comment => {
+        const isLiked = comment.is_liked === 1 || comment.is_liked === true;
+        const isAuthor = currentUser && comment.user_id === currentUser.id;
+        
+        return `
+          <div class="timeline-comment" data-timestamp="${comment.timestamp_seconds}">
+            <div class="comment-timestamp">${this.formatTime(comment.timestamp_seconds)}</div>
+            <div class="comment-content">
+              <div class="comment-author">
+                ${escapeHtml(comment.author_name || 'Участник')}
+                <span>${this.formatDate(comment.created_at)}</span>
+              </div>
+              <div class="comment-text">${escapeHtml(comment.comment_text)}</div>
+              <div class="comment-actions">
+                <button class="comment-like-btn ${isLiked ? 'liked' : ''}" data-comment-id="${comment.id}">
+                  <i class="fa-${isLiked ? 'solid' : 'regular'} fa-heart"></i> ${comment.likes_count || 0}
+                </button>
+                ${isAuthor ? `
+                  <button class="comment-delete-btn-global" data-comment-id="${comment.id}">
+                    <i class="fa-regular fa-trash-can"></i> Удалить
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+  
+      // При клике на комментарий — перематываем трек
+      listContainer.querySelectorAll('.timeline-comment').forEach(el => {
+        el.addEventListener('click', (e) => {
+          if (e.target.closest('.comment-like-btn') || e.target.closest('.comment-delete-btn')) return;
+          const timestamp = parseFloat(el.getAttribute('data-timestamp'));
+          this.seekToTime(timestamp);
+        });
+      });
+  
+      // Лайки
+      listContainer.querySelectorAll('.comment-like-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const commentId = btn.getAttribute('data-comment-id');
+          await this.likeComment(commentId);
+        });
+      });
+  
+      // Удаление
+      listContainer.querySelectorAll('.comment-delete-btn-global').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const commentId = btn.getAttribute('data-comment-id');
+          await this.deleteComment(commentId);
+        });
+      });
+    }
+  
+    async init() {
+      await this.loadComments();      // Ждём загрузки комментариев
+      this.render();                  // Затем рендерим
+      // Комментарии уже есть в this.comments, они отобразятся
+    }
+    
+    render() {
+      if (!this.container) return;
+      
+      this.container.innerHTML = `
+        <div class="timeline-container">
+          <div class="waveform-controls">
+            <button class="waveform-play-btn">
+              <i class="fa-solid fa-play"></i>
+            </button>
+            <div class="current-time-badge">
+              <i class="fa-regular fa-clock"></i>
+              <span class="current-time-value">0:00</span>
+              <span class="total-time-value">/ 0:00</span>
+            </div>
+            <span style="font-size: 11px; color: var(--text-secondary); margin-left: auto;">👇 кликни на волну → комментарий</span>
+          </div>
+          <div class="waveform-container">
+            <div id="waveform"></div>
+          </div>
+          <div class="timeline-comments-list"></div>
+          <div class="add-comment-form">
+            <input type="text" class="add-comment-input" placeholder="Напишите комментарий к текущему моменту...">
+            <button class="add-comment-submit">💬 Оставить</button>
+          </div>
+        </div>
+      `;
+    
+      // Сначала отрисовываем список комментариев (уже загруженных)
+      this.renderCommentsList();
+    
+      // Добавляем обработчик кнопки Play/Pause
+      const playBtn = this.container.querySelector('.waveform-play-btn');
+      if (playBtn) {
+        playBtn.addEventListener('click', () => {
+          if (this.wavesurfer) {
+            this.wavesurfer.playPause();
+            this.updatePlayButtonIcon();
+          }
+        });
+      }
+    
+      const input = this.container.querySelector('.add-comment-input');
+      const submitBtn = this.container.querySelector('.add-comment-submit');
+      
+      const addAtCurrentTime = async () => {
+        const text = input.value.trim();
+        if (!text) return;
+        const success = await this.addComment(this.currentTime, text);
+        if (success) {
+          input.value = '';
+        }
+      };
+    
+      submitBtn.addEventListener('click', addAtCurrentTime);
+      input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') addAtCurrentTime();
+      });
+    
+      // Инициализируем WaveSurfer
+      this.initWaveSurfer();
+    }
+  
+    destroy() {
+      if (this.wavesurfer) {
+        try {
+          this.wavesurfer.destroy();
+        } catch(e) {}
+        this.wavesurfer = null;
+      }
+    }
+  }
+
   
   // ========== СТАРТ ==========
   async function startApp() {
