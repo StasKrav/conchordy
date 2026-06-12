@@ -1638,7 +1638,11 @@
       if (!listContainer) return;
   
       if (this.comments.length === 0) {
-        listContainer.innerHTML = '<div class="timeline-empty">🎧 Кликните на волну, чтобы оставить комментарий к моменту в треке</div>';
+        listContainer.innerHTML = `<div class="timeline-empty">
+          🎧 Нажми на паузу или кликни на волну и оставь комментарий к моменту в треке.
+          <br>
+          Клик на комментарии воспроизведет трек с места комментария
+        </div>`;
         return;
       }
   
