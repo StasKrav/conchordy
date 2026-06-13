@@ -1360,12 +1360,26 @@ textarea#restoreCodeInput {
 .waveform-controls {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
 }
 
-.waveform-play-btn {
-  background: var(--accent);
+.waveform-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-light);
+  border-radius: 40px;
+  padding: 2px;
+}
+
+.waveform-rewind-1-btn,
+.waveform-rewind-10-btn,
+.waveform-forward-10-btn,
+.waveform-forward-1-btn {
+  background: transparent;
   border: none;
   width: 36px;
   height: 36px;
@@ -1374,12 +1388,65 @@ textarea#restoreCodeInput {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  color: var(--text-primary);
+  transition: all 0.2s;
+  position: relative;
+}
+
+.waveform-rewind-1-btn:hover,
+.waveform-rewind-10-btn:hover,
+.waveform-forward-10-btn:hover,
+.waveform-forward-1-btn:hover {
+  background: var(--border-light);
+  transform: scale(1.05);
+}
+
+.waveform-rewind-1-btn .rewind-1-label,
+.waveform-rewind-10-btn .rewind-10-label,
+.waveform-forward-10-btn .forward-10-label,
+.waveform-forward-1-btn .forward-1-label {
+  position: absolute;
+  font-size: 8px;
+  font-weight: 600;
+  bottom: 4px;
+  right: 6px;
+  color: var(--text-secondary);
+}
+
+.waveform-rewind-1-btn:hover .rewind-1-label,
+.waveform-rewind-10-btn:hover .rewind-10-label,
+.waveform-forward-10-btn:hover .forward-10-label,
+.waveform-forward-1-btn:hover .forward-1-label {
+  color: var(--accent);
+}
+
+.waveform-play-btn,
+.waveform-stop-btn {
+  background: var(--card-bg);
+  border: 1px solid var(--border-light);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.waveform-play-btn {
+  background: var(--accent);
+  border-color: var(--accent);
   color: white;
-  transition: 0.2s;
 }
 
 .waveform-play-btn:hover {
   background: var(--accent-dark);
+  transform: scale(1.05);
+}
+
+.waveform-stop-btn:hover {
+  background: var(--border-light);
   transform: scale(1.05);
 }
 
@@ -1388,10 +1455,12 @@ textarea#restoreCodeInput {
   align-items: center;
   gap: 6px;
   background: #f4ede6;
-  padding: 6px 12px;
-  border-radius: 30px;
-  font-size: 13px;
+  padding: 8px 14px;
+  border-radius: 40px;
+  font-size: 14px;
   font-family: monospace;
+  margin-left: auto;
+  font-weight: 500;
 }
 
 .total-time-value {
@@ -1887,4 +1956,58 @@ textarea#restoreCodeInput {
 
 .comment-modal-range-badge i {
   color: var(--accent);
+}
+
+@media (max-width: 560px) {
+  .waveform-controls {
+    gap: 6px;
+  }
+  
+  .waveform-rewind-1-btn,
+  .waveform-rewind-10-btn,
+  .waveform-forward-10-btn,
+  .waveform-forward-1-btn {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .waveform-play-btn,
+  .waveform-stop-btn {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .waveform-rewind-1-btn .rewind-1-label,
+  .waveform-rewind-10-btn .rewind-10-label,
+  .waveform-forward-10-btn .forward-10-label,
+  .waveform-forward-1-btn .forward-1-label {
+    font-size: 7px;
+    bottom: 3px;
+    right: 5px;
+  }
+  
+  .current-time-badge {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .waveform-group {
+    gap: 2px;
+  }
+  
+  .waveform-rewind-1-btn,
+  .waveform-rewind-10-btn,
+  .waveform-forward-10-btn,
+  .waveform-forward-1-btn {
+    width: 30px;
+    height: 30px;
+  }
+  
+  .waveform-play-btn,
+  .waveform-stop-btn {
+    width: 38px;
+    height: 38px;
+  }
 }

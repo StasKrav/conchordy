@@ -1718,6 +1718,46 @@
         }
       }
     }
+
+    // Остановить и перемотать в начало
+    stopAndReset() {
+      if (this.wavesurfer) {
+        this.wavesurfer.stop();
+        this.currentTime = 0;
+        this.updateTimeBadge();
+        this.updatePlayButtonIcon();
+      }
+    }
+    
+    // Перемотка назад на X секунд
+    // Перемотка назад на X секунд
+    rewind(seconds = 10) {
+      if (this.wavesurfer) {
+        const newTime = Math.max(0, this.wavesurfer.getCurrentTime() - seconds);
+        this.wavesurfer.seekTo(newTime / this.wavesurfer.getDuration());
+        this.updateTimeBadge();
+      }
+    }
+    
+    // Перемотка на 1 секунду назад
+    rewind1() {
+      this.rewind(1);
+    }
+    
+    // Перемотка вперёд на X секунд
+    forward(seconds = 10) {
+      if (this.wavesurfer) {
+        const duration = this.wavesurfer.getDuration();
+        const newTime = Math.min(duration, this.wavesurfer.getCurrentTime() + seconds);
+        this.wavesurfer.seekTo(newTime / duration);
+        this.updateTimeBadge();
+      }
+    }
+    
+    // Перемотка на 1 секунду вперёд
+    forward1() {
+      this.forward(1);
+    }
   
     renderCommentsList(listContainer) {
       if (!listContainer) return;
@@ -2022,9 +2062,36 @@
       this.container.innerHTML = `
         <div class="timeline-container">
           <div class="waveform-controls">
-            <button class="waveform-play-btn">
+            <div class="waveform-group">
+              <button class="waveform-rewind-1-btn" title="Назад на 1 секунду">
+                <i class="fa-solid fa-backward-step"></i>
+                <span class="rewind-1-label">1</span>
+              </button>
+              <button class="waveform-rewind-10-btn" title="Назад на 10 секунд">
+                <i class="fa-solid fa-backward-step"></i>
+                <span class="rewind-10-label">10</span>
+              </button>
+            </div>
+            
+            <button class="waveform-play-btn" title="Play / Pause">
               <i class="fa-solid fa-play"></i>
             </button>
+            
+            <button class="waveform-stop-btn" title="Остановить и в начало">
+              <i class="fa-solid fa-stop"></i>
+            </button>
+            
+            <div class="waveform-group">
+              <button class="waveform-forward-10-btn" title="Вперёд на 10 секунд">
+                <i class="fa-solid fa-forward-step"></i>
+                <span class="forward-10-label">10</span>
+              </button>
+              <button class="waveform-forward-1-btn" title="Вперёд на 1 секунду">
+                <i class="fa-solid fa-forward-step"></i>
+                <span class="forward-1-label">1</span>
+              </button>
+            </div>
+            
             <div class="current-time-badge">
               <span class="current-time-value">0:00</span>
               <span class="total-time-value">/ 0:00</span>
@@ -2051,6 +2118,57 @@
           }
         });
       }
+
+      // Добавляем обработчики для кнопок перемотки
+      const rewind1Btn = this.container.querySelector('.waveform-rewind-1-btn');
+      const rewind10Btn = this.container.querySelector('.waveform-rewind-10-btn');
+      const forward10Btn = this.container.querySelector('.waveform-forward-10-btn');
+      const forward1Btn = this.container.querySelector('.waveform-forward-1-btn');
+      const stopBtn = this.container.querySelector('.waveform-stop-btn');
+      <!-- const playBtn = this.container.querySelector('.waveform-play-btn'); -->
+      
+      if (rewind1Btn) {
+        rewind1Btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.rewind1();
+        });
+      }
+      
+      if (rewind10Btn) {
+        rewind10Btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.rewind(10);
+        });
+      }
+      
+      if (forward10Btn) {
+        forward10Btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.forward(10);
+        });
+      }
+      
+      if (forward1Btn) {
+        forward1Btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.forward1();
+        });
+      }
+      
+      if (stopBtn) {
+        stopBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.stopAndReset();
+        });
+      }
+      
+      <!-- if (playBtn) { -->
+      <!--   playBtn.addEventListener('click', (e) => { -->
+      <!--     e.stopPropagation(); -->
+      <!--     this.wavesurfer.playPause(); -->
+      <!--     this.updatePlayButtonIcon(); -->
+      <!--   }); -->
+      <!-- } -->
   
       const input = this.container.querySelector('.add-comment-input');
       const submitBtn = this.container.querySelector('.add-comment-submit');
