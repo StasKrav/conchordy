@@ -1400,7 +1400,7 @@
     });
   }
 
-  // ========== МОДУЛЬ ТАЙМКОД-КОММЕНТАРИЕВ ==========
+  // ========== МОДУЛЬ ТАЙМКОД-КОММЕНТАРИЕВ (с поддержкой диапазонов) ==========
   class TimelineComments {
     constructor(postId, audioUrl, containerElement) {
       this.postId = postId;
@@ -1409,12 +1409,22 @@
       this.wavesurfer = null;
       this.comments = [];
       this.currentTime = 0;
+      
+      // Для выделения диапазона
+      this.isDragging = false;
+      this.dragStartX = 0;
+      this.dragStartTime = 0;
+      this.rangeSelection = null;
+      
+      // Сохраняем экземпляр в DOM
+      containerElement.__timelineInstance = this;
+      
       // Запускаем инициализацию
       this.init();
     }
   
     formatTime(seconds) {
-      if (isNaN(seconds) || seconds === undefined) return '0:00';
+      if (isNaN(seconds) || seconds === undefined || seconds === null) return '0:00';
       const mins = Math.floor(seconds / 60);
       const secs = Math.floor(seconds % 60);
       return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -1436,6 +1446,12 @@
         if (response.ok) {
           this.comments = await response.json();
           console.log(`📝 Загружено ${this.comments.length} комментариев для поста ${this.postId}`);
+          
+          // Обновляем список комментариев
+          const listContainer = this.container.querySelector('.timeline-comments-list');
+          if (listContainer) {
+            this.renderCommentsList(listContainer);
+          }
         } else {
           this.comments = [];
         }
@@ -1445,7 +1461,7 @@
       }
     }
   
-    async addComment(timestamp, text) {
+    async addComment(startTime, endTime, text) {
       if (!currentUser) {
         alert('Войдите в аккаунт, чтобы комментировать');
         return false;
@@ -1459,7 +1475,8 @@
           body: JSON.stringify({
             post_id: this.postId,
             user_id: currentUser.id,
-            timestamp_seconds: timestamp,
+            start_time: startTime,
+            end_time: endTime || null,
             comment_text: text.trim()
           })
         });
@@ -1467,7 +1484,8 @@
         if (response.ok) {
           const newComment = await response.json();
           this.comments.push(newComment);
-          this.renderCommentsList();
+          const listContainer = this.container.querySelector('.timeline-comments-list');
+          if (listContainer) this.renderCommentsList(listContainer);
           return true;
         } else {
           const error = await response.json();
@@ -1495,7 +1513,6 @@
   
         if (response.ok) {
           await this.loadComments();
-          this.renderCommentsList();
         }
       } catch (e) {
         console.error('Ошибка лайка:', e);
@@ -1515,7 +1532,6 @@
   
         if (response.ok) {
           await this.loadComments();
-          this.renderCommentsList();
         } else {
           const error = await response.json();
           alert('Ошибка: ' + (error.error || 'Не удалось удалить'));
@@ -1535,6 +1551,21 @@
       }
     }
   
+    playRange(startTime, endTime) {
+      if (this.wavesurfer) {
+        this.wavesurfer.seekTo(startTime / this.wavesurfer.getDuration());
+        this.wavesurfer.play();
+        
+        const stopAtEnd = () => {
+          if (this.wavesurfer.getCurrentTime() >= endTime) {
+            this.wavesurfer.pause();
+            this.wavesurfer.un('audioprocess', stopAtEnd);
+          }
+        };
+        this.wavesurfer.on('audioprocess', stopAtEnd);
+      }
+    }
+  
     updateTimeBadge() {
       const badge = this.container.querySelector('.current-time-value');
       if (badge) badge.textContent = this.formatTime(this.currentTime);
@@ -1547,6 +1578,150 @@
         if (icon) {
           icon.className = this.wavesurfer.isPlaying() ? 'fa-solid fa-pause' : 'fa-solid fa-play';
         }
+      }
+    }
+  
+    renderCommentsList(listContainer) {
+      if (!listContainer) return;
+  
+      // Проверяем, не скрыл ли пользователь подсказку навсегда
+      const hintDismissed = localStorage.getItem('chiuso_timeline_hint_dismissed');
+      
+      // Если есть комментарии — показываем их
+      if (this.comments.length > 0) {
+        const sortedComments = [...this.comments].sort((a, b) => a.start_time - b.start_time);
+        
+        listContainer.innerHTML = sortedComments.map(comment => {
+          const isLiked = comment.is_liked === 1 || comment.is_liked === true;
+          const isAuthor = currentUser && comment.user_id === currentUser.id;
+          
+          const timeDisplay = comment.end_time && comment.end_time !== comment.start_time
+            ? `${this.formatTime(comment.start_time)} → ${this.formatTime(comment.end_time)}`
+            : this.formatTime(comment.start_time);
+          
+          const rangeClass = comment.end_time && comment.end_time !== comment.start_time ? 'range-comment' : 'point-comment';
+          
+          return `
+            <div class="timeline-comment ${rangeClass}" data-start-time="${comment.start_time}" data-end-time="${comment.end_time || ''}">
+              <div class="comment-timestamp">${timeDisplay}</div>
+              <div class="comment-content">
+                <div class="comment-author">
+                  ${escapeHtml(comment.author_name || 'Участник')}
+                  <span>${this.formatDate(comment.created_at)}</span>
+                </div>
+                <div class="comment-text">${escapeHtml(comment.comment_text)}</div>
+                <div class="comment-actions">
+                  <button class="comment-like-btn ${isLiked ? 'liked' : ''}" data-comment-id="${comment.id}">
+                    <i class="fa-${isLiked ? 'solid' : 'regular'} fa-heart"></i> ${comment.likes_count || 0}
+                  </button>
+                  ${isAuthor ? `
+                    <button class="comment-delete-btn-global" data-comment-id="${comment.id}">
+                      <i class="fa-regular fa-trash-can"></i> Удалить
+                    </button>
+                  ` : ''}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+  
+        // При клике на комментарий — перематываем трек
+        listContainer.querySelectorAll('.timeline-comment').forEach(el => {
+          el.addEventListener('click', (e) => {
+            if (e.target.closest('.comment-like-btn') || e.target.closest('.comment-delete-btn-global')) return;
+            const startTime = parseFloat(el.getAttribute('data-start-time'));
+            const endTime = el.getAttribute('data-end-time');
+            
+            if (endTime && parseFloat(endTime) !== startTime) {
+              this.playRange(startTime, parseFloat(endTime));
+            } else {
+              this.seekToTime(startTime);
+            }
+          });
+        });
+  
+        // Лайки
+        listContainer.querySelectorAll('.comment-like-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const commentId = btn.getAttribute('data-comment-id');
+            await this.likeComment(commentId);
+          });
+        });
+  
+        // Удаление
+        listContainer.querySelectorAll('.comment-delete-btn-global').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const commentId = btn.getAttribute('data-comment-id');
+            await this.deleteComment(commentId);
+          });
+        });
+        
+        return;
+      }
+      
+      // Если комментариев нет и подсказка не скрыта навсегда — показываем её
+      if (!hintDismissed) {
+        listContainer.innerHTML = `
+          <div class="timeline-empty">
+            <svg class="timeline-empty-icon" width="40" height="40" viewBox="0 0 242 242" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="121" cy="121" r="32" stroke="currentColor" stroke-width="10" fill="none"/>
+              <path d="M121,89 L121,25" stroke="currentColor" stroke-width="10" fill="none" stroke-linecap="round"/>
+              <path d="M121,153 L121,217" stroke="currentColor" stroke-width="10" fill="none" stroke-linecap="round"/>
+              <path d="M153,121 L217,121" stroke="currentColor" stroke-width="10" fill="none" stroke-linecap="round"/>
+              <path d="M89,121 L25,121" stroke="currentColor" stroke-width="10" fill="none" stroke-linecap="round"/>
+              <path d="M153,89 L185,57" stroke="currentColor" stroke-width="10" fill="none" stroke-linecap="round"/>
+              <path d="M89,89 L57,57" stroke="currentColor" stroke-width="10" fill="none" stroke-linecap="round"/>
+              <path d="M89,153 L57,185" stroke="currentColor" stroke-width="10" fill="none" stroke-linecap="round"/>
+              <path d="M153,153 L185,185" stroke="currentColor" stroke-width="10" fill="none" stroke-linecap="round"/>
+            </svg>
+            <div class="timeline-empty-title">Как это работает</div>
+            <div class="timeline-empty-steps">
+              <div class="step-item">
+                <svg width="30" height="20" viewBox="0 0 146 146" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M25,25 L25,89" stroke="currentColor" stroke-width="10" fill="none" stroke-linecap="round"/>
+                  <path d="M25,25 L89,25" stroke="currentColor" stroke-width="10" fill="none" stroke-linecap="round"/>
+                  <path d="M25,25 L121,121" stroke="currentColor" stroke-width="10" fill="none" stroke-linecap="round"/>
+                </svg>
+                <span><strong>Нажми на паузу при воспроизведении или Кликни на волну</strong> — оставь комментарий к этому моменту</span>
+              </div>
+              <div class="step-item">
+                <svg width="30" height="20" viewBox="0 0 178 114" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M25,57 L153,57" stroke="currentColor" stroke-width="10" fill="none" stroke-linecap="round"/>
+                  <path d="M121,25 L153,57" stroke="currentColor" stroke-width="10" fill="none" stroke-linecap="round"/>
+                  <path d="M153,57 L121,89" stroke="currentColor" stroke-width="10" fill="none" stroke-linecap="round"/>
+                  <path d="M57,89 L25,57" stroke="currentColor" stroke-width="10" fill="none" stroke-linecap="round"/>
+                  <path d="M25,57 L57,25" stroke="currentColor" stroke-width="10" fill="none" stroke-linecap="round"/>
+                </svg>
+                <span><strong>Зажми и потяни</strong> — выдели диапазон для комментария</span>
+              </div>
+              <div class="step-item">
+                <svg width="30" height="20" viewBox="0 0 146 178" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M25,25 L121,89" stroke="currentColor" stroke-width="10" fill="none" stroke-linecap="round"/>
+                  <path d="M121,89 L25,153" stroke="currentColor" stroke-width="10" fill="none" stroke-linecap="round"/>
+                  <path d="M25,153 L25,25" stroke="currentColor" stroke-width="10" fill="none" stroke-linecap="round"/>
+                </svg>
+                <span><strong>Кликни на комментарий</strong> — трек перемотается на это место</span>
+              </div>
+            </div>
+            <button class="timeline-hint-dismiss-btn" id="dismissHintBtn_${this.postId}">
+              <i class="fa-regular fa-eye-slash"></i> Больше не показывать
+            </button>
+          </div>
+        `;
+        
+        // Добавляем обработчик для кнопки скрытия
+        const dismissBtn = listContainer.querySelector(`#dismissHintBtn_${this.postId}`);
+        if (dismissBtn) {
+          dismissBtn.addEventListener('click', () => {
+            localStorage.setItem('chiuso_timeline_hint_dismissed', 'true');
+            listContainer.innerHTML = '<div class="timeline-empty" style="padding: 16px; font-size: 12px;">Подсказка скрыта. Комментарии появятся здесь</div>';
+          });
+        }
+      } else {
+        // Подсказка навсегда скрыта
+        listContainer.innerHTML = '<div class="timeline-empty" style="padding: 16px; font-size: 12px; color: var(--text-secondary);">Пока нет комментариев. Будьте первым!</div>';
       }
     }
   
@@ -1593,23 +1768,92 @@
         this.updatePlayButtonIcon();
       });
   
-      // Клик по волне для добавления комментария
-      waveformDiv.addEventListener('click', async (e) => {
+      // ========== ОБРАБОТЧИКИ ДЛЯ ВЫДЕЛЕНИЯ ДИАПАЗОНА ==========
+      
+      waveformDiv.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
         if (!this.wavesurfer) return;
-        const rect = waveformDiv.getBoundingClientRect();
-        const clickX = e.clientX - rect.left;
-        const percentage = Math.max(0, Math.min(1, clickX / rect.width));
-        const seconds = percentage * this.wavesurfer.getDuration();
         
-        const comment = prompt(`Добавить комментарий на ${this.formatTime(seconds)}:`, '');
-        if (comment) {
-          await this.addComment(seconds, comment);
+        e.preventDefault();
+        
+        this.isDragging = true;
+        const rect = waveformDiv.getBoundingClientRect();
+        this.dragStartX = e.clientX;
+        const percentage = Math.max(0, Math.min(1, (this.dragStartX - rect.left) / rect.width));
+        this.dragStartTime = percentage * this.wavesurfer.getDuration();
+        
+        this.rangeSelection = document.createElement('div');
+        this.rangeSelection.className = 'waveform-range-selection';
+        this.rangeSelection.style.left = `${this.dragStartX - rect.left}px`;
+        this.rangeSelection.style.width = '0px';
+        waveformDiv.appendChild(this.rangeSelection);
+        
+        document.body.style.userSelect = 'none';
+      });
+      
+      waveformDiv.addEventListener('mousemove', (e) => {
+        if (!this.isDragging || !this.rangeSelection) return;
+        
+        const rect = waveformDiv.getBoundingClientRect();
+        const currentX = e.clientX;
+        const startXRelative = this.dragStartX - rect.left;
+        const currentXRelative = currentX - rect.left;
+        let width = currentXRelative - startXRelative;
+        
+        if (width > 0) {
+          this.rangeSelection.style.left = `${startXRelative}px`;
+          this.rangeSelection.style.width = `${width}px`;
+        } else {
+          this.rangeSelection.style.left = `${currentXRelative}px`;
+          this.rangeSelection.style.width = `${-width}px`;
+        }
+      });
+      
+      waveformDiv.addEventListener('mouseup', async (e) => {
+        if (!this.isDragging) return;
+        this.isDragging = false;
+        
+        if (this.rangeSelection) {
+          this.rangeSelection.remove();
+          this.rangeSelection = null;
+        }
+        
+        document.body.style.userSelect = '';
+        
+        const rect = waveformDiv.getBoundingClientRect();
+        const endX = e.clientX;
+        const startPercentage = Math.max(0, Math.min(1, (this.dragStartX - rect.left) / rect.width));
+        const endPercentage = Math.max(0, Math.min(1, (endX - rect.left) / rect.width));
+        
+        const startTime = Math.min(this.dragStartTime, endPercentage * this.wavesurfer.getDuration());
+        const endTime = Math.max(this.dragStartTime, endPercentage * this.wavesurfer.getDuration());
+        const rangeDuration = endTime - startTime;
+        
+        if (rangeDuration < 0.1) {
+          const comment = prompt(`💬 Комментарий к моменту ${this.formatTime(startTime)}:`, '');
+          if (comment) await this.addComment(startTime, null, comment);
+        } else {
+          const comment = prompt(`📌 Комментарий к диапазону ${this.formatTime(startTime)} → ${this.formatTime(endTime)}:`, '');
+          if (comment) await this.addComment(startTime, endTime, comment);
+        }
+      });
+      
+      document.addEventListener('mouseup', () => {
+        if (this.isDragging) {
+          this.isDragging = false;
+          if (this.rangeSelection) {
+            this.rangeSelection.remove();
+            this.rangeSelection = null;
+          }
+          document.body.style.userSelect = '';
         }
       });
   
       // Тултип при наведении
       waveformDiv.addEventListener('mousemove', (e) => {
+        if (this.isDragging) return;
         if (!this.wavesurfer || !this.wavesurfer.getDuration()) return;
+        
         const rect = waveformDiv.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
         const percentage = Math.max(0, Math.min(1, clickX / rect.width));
@@ -1633,83 +1877,6 @@
       });
     }
   
-    renderCommentsList() {
-      const listContainer = this.container.querySelector('.timeline-comments-list');
-      if (!listContainer) return;
-  
-      if (this.comments.length === 0) {
-        listContainer.innerHTML = `<div class="timeline-empty">
-          🎧 Нажми на паузу или кликни на волну и оставь комментарий к моменту в треке.
-          <br>
-          Клик на комментарии воспроизведет трек с места комментария
-        </div>`;
-        return;
-      }
-  
-      const sortedComments = [...this.comments].sort((a, b) => a.timestamp_seconds - b.timestamp_seconds);
-      
-      listContainer.innerHTML = sortedComments.map(comment => {
-        const isLiked = comment.is_liked === 1 || comment.is_liked === true;
-        const isAuthor = currentUser && comment.user_id === currentUser.id;
-        
-        return `
-          <div class="timeline-comment" data-timestamp="${comment.timestamp_seconds}">
-            <div class="comment-timestamp">${this.formatTime(comment.timestamp_seconds)}</div>
-            <div class="comment-content">
-              <div class="comment-author">
-                ${escapeHtml(comment.author_name || 'Участник')}
-                <span>${this.formatDate(comment.created_at)}</span>
-              </div>
-              <div class="comment-text">${escapeHtml(comment.comment_text)}</div>
-              <div class="comment-actions">
-                <button class="comment-like-btn ${isLiked ? 'liked' : ''}" data-comment-id="${comment.id}">
-                  <i class="fa-${isLiked ? 'solid' : 'regular'} fa-heart"></i> ${comment.likes_count || 0}
-                </button>
-                ${isAuthor ? `
-                  <button class="comment-delete-btn-global" data-comment-id="${comment.id}">
-                    <i class="fa-regular fa-trash-can"></i> Удалить
-                  </button>
-                ` : ''}
-              </div>
-            </div>
-          </div>
-        `;
-      }).join('');
-  
-      // При клике на комментарий — перематываем трек
-      listContainer.querySelectorAll('.timeline-comment').forEach(el => {
-        el.addEventListener('click', (e) => {
-          if (e.target.closest('.comment-like-btn') || e.target.closest('.comment-delete-btn')) return;
-          const timestamp = parseFloat(el.getAttribute('data-timestamp'));
-          this.seekToTime(timestamp);
-        });
-      });
-  
-      // Лайки
-      listContainer.querySelectorAll('.comment-like-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          const commentId = btn.getAttribute('data-comment-id');
-          await this.likeComment(commentId);
-        });
-      });
-  
-      // Удаление
-      listContainer.querySelectorAll('.comment-delete-btn-global').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          const commentId = btn.getAttribute('data-comment-id');
-          await this.deleteComment(commentId);
-        });
-      });
-    }
-  
-    async init() {
-      await this.loadComments();      // Ждём загрузки комментариев
-      this.render();                  // Затем рендерим
-      // Комментарии уже есть в this.comments, они отобразятся
-    }
-    
     render() {
       if (!this.container) return;
       
@@ -1723,7 +1890,6 @@
               <span class="current-time-value">0:00</span>
               <span class="total-time-value">/ 0:00</span>
             </div>
-            <span style="font-size: 11px; color: var(--text-secondary); margin-left: auto;">👇жми паузу или клик на волну → комментарий</span>
           </div>
           <div class="waveform-container">
             <div id="waveform"></div>
@@ -1735,10 +1901,7 @@
           </div>
         </div>
       `;
-    
-      // Сначала отрисовываем список комментариев (уже загруженных)
-      this.renderCommentsList();
-    
+  
       // Добавляем обработчик кнопки Play/Pause
       const playBtn = this.container.querySelector('.waveform-play-btn');
       if (playBtn) {
@@ -1749,26 +1912,37 @@
           }
         });
       }
-    
+  
       const input = this.container.querySelector('.add-comment-input');
       const submitBtn = this.container.querySelector('.add-comment-submit');
       
       const addAtCurrentTime = async () => {
         const text = input.value.trim();
         if (!text) return;
-        const success = await this.addComment(this.currentTime, text);
+        const success = await this.addComment(this.currentTime, null, text);
         if (success) {
           input.value = '';
         }
       };
-    
+  
       submitBtn.addEventListener('click', addAtCurrentTime);
       input.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') addAtCurrentTime();
       });
-    
+  
       // Инициализируем WaveSurfer
       this.initWaveSurfer();
+      
+      // Рендерим список комментариев (с подсказкой, если нужно)
+      const listContainer = this.container.querySelector('.timeline-comments-list');
+      if (listContainer) {
+        this.renderCommentsList(listContainer);
+      }
+    }
+  
+    async init() {
+      await this.loadComments();
+      this.render();
     }
   
     destroy() {

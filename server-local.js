@@ -352,7 +352,7 @@ app.post('/api/reset-password', async (req, res) => {
 
 // ========== API ТАЙМКОД-КОММЕНТАРИЕВ ==========
 
-// Получить все комментарии к посту с информацией о лайках
+// GET /api/timeline-comments/:postId
 app.get('/api/timeline-comments/:postId', (req, res) => {
   const { postId } = req.params;
   const userId = req.query.userId || null;
@@ -362,14 +362,14 @@ app.get('/api/timeline-comments/:postId', (req, res) => {
       tc.id,
       tc.post_id,
       tc.user_id,
-      tc.timestamp_seconds,
+      tc.start_time,
+      tc.end_time,
       tc.comment_text,
       tc.created_at,
       u.name as author_name,
       (SELECT COUNT(*) FROM comment_likes WHERE comment_id = tc.id) as likes_count
   `;
   
-  // Если передан userId, проверяем, лайкнул ли пользователь этот комментарий
   if (userId) {
     query += `,
       (SELECT COUNT(*) > 0 FROM comment_likes WHERE comment_id = tc.id AND user_id = ?) as is_liked
@@ -380,7 +380,7 @@ app.get('/api/timeline-comments/:postId', (req, res) => {
     FROM timeline_comments tc
     JOIN users u ON tc.user_id = u.id
     WHERE tc.post_id = ?
-    ORDER BY tc.timestamp_seconds ASC
+    ORDER BY tc.start_time ASC
   `;
   
   const params = userId ? [userId, postId] : [postId];
@@ -394,25 +394,24 @@ app.get('/api/timeline-comments/:postId', (req, res) => {
   });
 });
 
-// Добавить новый комментарий
+// POST /api/timeline-comments
 app.post('/api/timeline-comments', (req, res) => {
-  const { post_id, user_id, timestamp_seconds, comment_text } = req.body;
+  const { post_id, user_id, start_time, end_time, comment_text } = req.body;
   
-  if (!post_id || !user_id || timestamp_seconds === undefined || !comment_text) {
+  if (!post_id || !user_id || start_time === undefined || !comment_text) {
     return res.status(400).json({ error: 'Не все поля заполнены' });
   }
   
   db.run(
-    `INSERT INTO timeline_comments (post_id, user_id, timestamp_seconds, comment_text, created_at)
-     VALUES (?, ?, ?, ?, ?)`,
-    [post_id, user_id, timestamp_seconds, comment_text.trim(), Date.now()],
+    `INSERT INTO timeline_comments (post_id, user_id, start_time, end_time, comment_text, created_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [post_id, user_id, start_time, end_time || null, comment_text.trim(), Date.now()],
     function(err) {
       if (err) {
         console.error('Ошибка добавления комментария:', err);
         return res.status(500).json({ error: err.message });
       }
       
-      // Возвращаем созданный комментарий с именем автора
       db.get(
         `SELECT tc.*, u.name as author_name,
          (SELECT COUNT(*) FROM comment_likes WHERE comment_id = tc.id) as likes_count,
@@ -430,7 +429,30 @@ app.post('/api/timeline-comments', (req, res) => {
   );
 });
 
-// Лайк/анлайк комментария (toggle)
+// DELETE /api/timeline-comments/:commentId
+app.delete('/api/timeline-comments/:commentId', (req, res) => {
+  const { commentId } = req.params;
+  const { user_id } = req.body;
+  
+  db.get(`SELECT user_id FROM timeline_comments WHERE id = ?`, [commentId], (err, comment) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!comment) return res.status(404).json({ error: 'Комментарий не найден' });
+    if (comment.user_id !== user_id) {
+      return res.status(403).json({ error: 'Нет прав на удаление' });
+    }
+    
+    db.run(`DELETE FROM comment_likes WHERE comment_id = ?`, [commentId], (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      
+      db.run(`DELETE FROM timeline_comments WHERE id = ?`, [commentId], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
+      });
+    });
+  });
+});
+
+// POST /api/comment-likes/:commentId (остаётся без изменений)
 app.post('/api/comment-likes/:commentId', (req, res) => {
   const { commentId } = req.params;
   const { user_id } = req.body;
@@ -439,65 +461,21 @@ app.post('/api/comment-likes/:commentId', (req, res) => {
     return res.status(400).json({ error: 'Не указан пользователь' });
   }
   
-  // Проверяем, есть ли уже лайк
-  db.get(
-    `SELECT id FROM comment_likes WHERE comment_id = ? AND user_id = ?`,
-    [commentId, user_id],
-    (err, existing) => {
-      if (err) return res.status(500).json({ error: err.message });
-      
-      if (existing) {
-        // Удаляем лайк
-        db.run(
-          `DELETE FROM comment_likes WHERE comment_id = ? AND user_id = ?`,
-          [commentId, user_id],
-          (err) => {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true, action: 'unliked' });
-          }
-        );
-      } else {
-        // Добавляем лайк
-        db.run(
-          `INSERT INTO comment_likes (comment_id, user_id, created_at) VALUES (?, ?, ?)`,
-          [commentId, user_id, Date.now()],
-          (err) => {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true, action: 'liked' });
-          }
-        );
-      }
-    }
-  );
-});
-
-// Удалить комментарий (только для автора)
-app.delete('/api/timeline-comments/:commentId', (req, res) => {
-  const { commentId } = req.params;
-  const { user_id } = req.body;
-  
-  db.get(
-    `SELECT user_id FROM timeline_comments WHERE id = ?`,
-    [commentId],
-    (err, comment) => {
-      if (err) return res.status(500).json({ error: err.message });
-      if (!comment) return res.status(404).json({ error: 'Комментарий не найден' });
-      if (comment.user_id !== user_id) {
-        return res.status(403).json({ error: 'Нет прав на удаление' });
-      }
-      
-      // Сначала удаляем лайки комментария
-      db.run(`DELETE FROM comment_likes WHERE comment_id = ?`, [commentId], (err) => {
+  db.get(`SELECT id FROM comment_likes WHERE comment_id = ? AND user_id = ?`, [commentId, user_id], (err, existing) => {
+    if (err) return res.status(500).json({ error: err.message });
+    
+    if (existing) {
+      db.run(`DELETE FROM comment_likes WHERE comment_id = ? AND user_id = ?`, [commentId, user_id], (err) => {
         if (err) return res.status(500).json({ error: err.message });
-        
-        // Затем удаляем сам комментарий
-        db.run(`DELETE FROM timeline_comments WHERE id = ?`, [commentId], (err) => {
-          if (err) return res.status(500).json({ error: err.message });
-          res.json({ success: true });
-        });
+        res.json({ success: true, action: 'unliked' });
+      });
+    } else {
+      db.run(`INSERT INTO comment_likes (comment_id, user_id, created_at) VALUES (?, ?, ?)`, [commentId, user_id, Date.now()], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true, action: 'liked' });
       });
     }
-  );
+  });
 });
 
 app.listen(port, () => {
