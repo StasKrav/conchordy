@@ -835,6 +835,136 @@
     
     renderProfileTabContent();
   }
+
+  // ========== ЭКРАН "О ПРОЕКТЕ" ==========
+  function renderAboutScreen() {
+    const container = document.getElementById('aboutScreen');
+    if (!container) return;
+    
+    container.innerHTML = `
+      <div class="about-container">
+        <div class="about-header">
+          <svg class="about-logo" width="60" height="60" viewBox="-20 -20 200 200" xmlns="http://www.w3.org/2000/svg">
+            <path fill="none" stroke="#d96c4a" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" 
+                  d="M 160.70997,58.064358 A 58.699776,57.871372 0 0 1 110.9398,115.26219 58.699776,57.871372 0 0 1 46.027222,75.466614 58.699776,57.871372 0 0 1 76.047947,6.1611009 58.699776,57.871372 0 0 1 150.09424,24.870704" 
+                  transform="matrix(0.94565764,0.325164,-0.33590158,0.94189709,0,0)"/>
+            <path fill="none" stroke="#d96c4a" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" 
+                  d="m -75.342331,-42.141541 a 34.257706,33.912876 0 0 1 -25.391159,32.7573235 34.257706,33.912876 0 0 1 -38.53459,-15.8008855 34.257706,33.912876 0 0 1 5.44419,-40.936463 34.257706,33.912876 0 0 1 41.352708,-5.389386" 
+                  transform="matrix(-0.88582572,-0.4640181,0.47738135,-0.87869622,0,0)"/>
+          </svg>
+          <h1 class="about-title">Chiuso<span style="color: var(--accent);">Club</span></h1>
+          <p class="about-subtitle">закрытое сообщество музыкантов</p>
+        </div>
+        
+        <div class="about-section">
+          <h2><i class="fa-regular fa-star"></i> Уникальные фишки</h2>
+          <div class="features-list">
+            <div class="feature-item">
+              <div class="feature-icon">🎯</div>
+              <div class="feature-content">
+                <h3>Комментарии к таймкодам</h3>
+                <p>Кликни на волну — оставь комментарий к конкретному моменту трека. Зажми и потяни — выдели диапазон для обсуждения. Клик на комментарий — трек перемотается на это место.</p>
+              </div>
+            </div>
+            <div class="feature-item">
+              <div class="feature-icon">🔒</div>
+              <div class="feature-content">
+                <h3>Закрытое сообщество</h3>
+                <p>Доступ только по инвайтам от участников. Каждый новый пользователь проходит «поручительство» — это создаёт доверительную среду без ботов и троллей.</p>
+              </div>
+            </div>
+            <div class="feature-item">
+              <div class="feature-icon">👥</div>
+              <div class="feature-content">
+                <h3>Репутация и верификация</h3>
+                <p>Рейтинг участников растёт с активностью и приглашением надёжных музыкантов. Проверенные участники отмечены специальным знаком.</p>
+              </div>
+            </div>
+            <div class="feature-item">
+              <div class="feature-icon">🎤</div>
+              <div class="feature-content">
+                <h3>Типы объявлений</h3>
+                <p>Вакансии / проекты, оборудование, дискурс — удобная фильтрация по типам и жанрам помогает быстро находить нужное.</p>
+              </div>
+            </div>
+            <div class="feature-item">
+              <div class="feature-icon">🗺️</div>
+              <div class="feature-content">
+                <h3>Поиск по городу и жанрам</h3>
+                <p>Находите музыкантов рядом или подходящих по стилю для совместного творчества.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="about-section">
+          <h2><i class="fa-regular fa-rocket"></i> В разработке</h2>
+          <div class="roadmap-list">
+            <div class="roadmap-item planned">
+              <div class="roadmap-status">🚀</div>
+              <div class="roadmap-content">
+                <h3>Микролицензии и продажа битов</h3>
+                <p>Покупка лицензий на треки прямо внутри сети. Автоматическая генерация PDF-договора. Комиссия платформы — 10%.</p>
+                <span class="roadmap-tag">скоро</span>
+              </div>
+            </div>
+            <div class="roadmap-item planned">
+              <div class="roadmap-status">🔐</div>
+              <div class="roadmap-content">
+                <h3>Защита от плагиата</h3>
+                <p>Уникальный «цифровой отпечаток» каждого трека. Система не позволит выдать чужой трек за свой.</p>
+                <span class="roadmap-tag">скоро</span>
+              </div>
+            </div>
+            <div class="roadmap-item planned">
+              <div class="roadmap-status">📺</div>
+              <div class="roadmap-content">
+                <h3>Видео-демо треков</h3>
+                <p>Возможность загружать короткие видео с процессом записи или живым исполнением.</p>
+                <span class="roadmap-tag">в планах</span>
+              </div>
+            </div>
+            <div class="roadmap-item planned">
+              <div class="roadmap-status">🔔</div>
+              <div class="roadmap-content">
+                <h3>Реальные уведомления</h3>
+                <p>Push-уведомления о новых комментариях, ответах на объявления и приглашениях.</p>
+                <span class="roadmap-tag">в планах</span>
+              </div>
+            </div>
+            <div class="roadmap-item planned">
+              <div class="roadmap-status">📱</div>
+              <div class="roadmap-content">
+                <h3>Мобильное приложение</h3>
+                <p>Нативные приложения для iOS и Android с полной поддержкой всех функций.</p>
+                <span class="roadmap-tag">дальше</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="about-section">
+          <h2><i class="fa-regular fa-message"></i> Обратная связь</h2>
+          <p class="feedback-text">Есть идея или нашли баг? Напишите основателю — каждый голос влияет на развитие платформы.</p>
+          <button class="feedback-btn" id="feedbackBtn">
+            <i class="fa-regular fa-envelope"></i> Написать основателю
+          </button>
+        </div>
+        
+        <div class="about-footer">
+          <p>ChiusoClub · версия 1.0<br>закрытое сообщество музыкантов</p>
+        </div>
+      </div>
+    `;
+    
+    document.getElementById('feedbackBtn')?.addEventListener('click', () => {
+      if (currentUser) {
+        showChatModal('founder', 'Основатель ChiusoClub');
+      } else {
+        alert('Войдите в аккаунт, чтобы написать сообщение');
+      }
+    });
+  }
   
   function renderProfileTabContent() {
     const content = document.getElementById('profileTabContent');
@@ -1202,6 +1332,7 @@
           </div>
           <div class="screen" id="searchScreen"></div>
           <div class="screen" id="profileScreen"></div>
+          <div class="screen" id="aboutScreen"></div>
         </div>
         <nav class="bottom-nav">
           <a href="#" class="nav-item active" data-screen="feed"><i class="fa-regular fa-rectangle-list nav-icon"></i><span>Лента</span></a>
@@ -1233,12 +1364,68 @@
         </div>
         <div class="menu-overlay" id="menuOverlay"></div>
         <div class="side-menu" id="sideMenu">
-          <div class="menu-item" data-action="profile"><i class="fa-regular fa-user"></i> Мой профиль</div>
-          <div class="menu-item" data-action="invites"><i class="fa-regular fa-gem"></i> Мои приглашения</div>
-          <div class="menu-item" data-action="notifications"><i class="fa-regular fa-bell"></i> Уведомления</div>
-          <div style="margin: 16px 0; border-top:1px solid var(--border-light);"></div>
-          <div class="menu-item" data-action="logout"><i class="fa-regular fa-arrow-right-from-bracket"></i> Выйти</div>
-        </div>
+                <div class="menu-item" data-action="profile">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                  </svg>
+                  <span>Мой профиль</span>
+                </div>
+                
+                <div class="menu-item" data-action="invites">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <rect x="2" y="4" width="20" height="16" rx="2"/>
+                    <polyline points="22 7 12 13 2 7"/>
+                  </svg>
+                  <span>Приглашения</span>
+                </div>
+                
+                <div class="menu-item" data-action="notifications">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                  </svg>
+                  <span>Уведомления</span>
+                </div>
+        
+                <!-- 🎨 ПЕРЕКЛЮЧАТЕЛЬ ТЕМЫ -->
+                  <div class="menu-item" id="themeMenuItem">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <circle cx="12" cy="12" r="5"/>
+                      <line x1="12" y1="1" x2="12" y2="3"/>
+                      <line x1="12" y1="21" x2="12" y2="23"/>
+                      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                      <line x1="1" y1="12" x2="3" y2="12"/>
+                      <line x1="21" y1="12" x2="23" y2="12"/>
+                      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                    </svg>
+                    <span>Тема: <span id="themeStatus">Светлая</span></span>
+                  </div>
+
+                  <div class="menu-item" data-action="about">
+                  <svg width="30" height="30" viewBox="0 0 228 260" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M114,82 L114,146" stroke="currentColor" stroke-width="20" fill="none" stroke-linecap="round"/>
+                  <path d="M114,178 L114,178" stroke="currentColor" stroke-width="20" fill="none" stroke-linecap="round"/>
+                  <path d="M50,50 L178,50 L178,210 L50,210 Z" stroke="currentColor" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                  
+                  </svg> О проекте</div>
+                
+                <div style="margin: 16px 0; border-top: 1px solid var(--border-light);"></div>
+                
+                <div class="menu-item" data-action="logout">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                    <polyline points="16 17 21 12 16 7"/>
+                    <line x1="21" y1="12" x2="9" y2="12"/>
+                  </svg>
+                  <span>Выйти</span>
+                </div>
+              </div>
+              <div class="menu-overlay" id="menuOverlay"></div>
+            </div>
+        
       </div>
     `;
     
@@ -1395,6 +1582,9 @@
           renderProfileScreen();
         } else if (action === 'notifications') {
           alert('Уведомления скоро появятся');
+        } else if (action === 'about') {
+          setActiveScreen('about');
+          renderAboutScreen();
         }
       });
     });
