@@ -29,6 +29,8 @@
   let currentUser = null;
   let currentGenreFilter = null;
   let viewingUserId = null;
+  let currentFeedMode = 'subscriptions'; // 'subscriptions' или 'all'
+  let followingIds = []; // ID пользователей, на кого подписан текущий пользователь
   
   // ========== ЗАГРУЗКА ДАННЫХ ==========
   async function loadInvites() {
@@ -147,6 +149,9 @@
     await loadInvites();
     await loadUsers();
     await loadPosts();
+    if (currentUser) {
+      await loadFollowing();
+    }
   }
   
   function saveAllData() {
@@ -331,6 +336,9 @@
     const genreList = genres ? genres.split(',').map(g => g.trim()) : [];
     const daysInCommunity = Math.floor((Date.now() - user.created_at) / (1000 * 60 * 60 * 24));
     
+    const followersCount = user.followers_count || 0;
+    const followingCount = user.following_count || 0;
+    
     container.innerHTML = `
       <div style="margin-bottom: 16px;">
         <button id="backFromProfileBtn" class="back-to-profile-btn">
@@ -345,9 +353,22 @@
         <div class="profile-name">${escapeHtml(user.name)}</div>
         <div class="profile-bio">${escapeHtml(user.instruments || 'Инструменты не указаны')} ${user.instruments && user.city ? '·' : ''} ${escapeHtml(user.city || 'Город не указан')}</div>
         ${genreList.length > 0 ? `<div class="profile-genres">${genreList.map(g => `<span class="genre-badge">${escapeHtml(g)}</span>`).join('')}</div>` : ''}
+        
+        <!-- СЧЁТЧИКИ ПОДПИСЧИКОВ/ПОДПИСОК -->
+        <div class="profile-stats">
+          <div class="stat">
+            <strong>${followersCount}</strong>
+            <span>подписчиков</span>
+          </div>
+          <div class="stat">
+            <strong>${followingCount}</strong>
+            <span>подписок</span>
+          </div>
+        </div>
+        
         <div class="profile-rating" style="margin-top: 8px;">
-           <strong>${rating}</strong> очков репутации
-          <span style="margin-left: 16px;"> в сообществе ${daysInCommunity} дней</span>
+          <strong>${rating}</strong> очков репутации
+          <span style="margin-left: 16px;">в сообществе ${daysInCommunity} дней</span>
         </div>
         ${user.about ? `<div class="profile-about" style="margin-top: 16px;">${escapeHtml(user.about)}</div>` : ''}
         <button class="profile-edit-btn" id="messageToUserBtn" style="margin-top: 20px;">
@@ -355,6 +376,37 @@
         </button>
       </div>
     `;
+  
+    const isFollow = isFollowing(user.id);
+    container.innerHTML += `
+      <button class="subscribe-action-btn ${isFollow ? 'subscribed' : ''}" id="subscribeActionBtn">
+        <i class="fa-${isFollow ? 'solid' : 'regular'} fa-bell${isFollow ? '-slash' : ''}"></i> 
+        <span>${isFollow ? 'Отписаться' : 'Подписаться'}</span>
+      </button>
+    `;
+    
+    document.getElementById('subscribeActionBtn')?.addEventListener('click', async () => {
+      if (isFollowing(user.id)) {
+        await unfollowUser(user.id);
+        // Обновляем отображаемые счётчики
+        const updatedUser = users.find(u => u.id === viewingUserId);
+        if (updatedUser) {
+          const statsDiv = document.querySelector('.profile-stats');
+          if (statsDiv) {
+            statsDiv.querySelector('.stat:first-child strong').textContent = updatedUser.followers_count || 0;
+          }
+        }
+      } else {
+        await followUser(user.id);
+        const updatedUser = users.find(u => u.id === viewingUserId);
+        if (updatedUser) {
+          const statsDiv = document.querySelector('.profile-stats');
+          if (statsDiv) {
+            statsDiv.querySelector('.stat:first-child strong').textContent = updatedUser.followers_count || 0;
+          }
+        }
+      }
+    });
     
     document.getElementById('backFromProfileBtn').onclick = () => {
       viewingUserId = null;
@@ -684,6 +736,13 @@
     if (!container) return;
     
     let filtered = posts.filter(p => p.status === "active");
+    
+    // Фильтр по подпискам
+    if (currentFeedMode === 'subscriptions' && followingIds.length > 0) {
+      filtered = filtered.filter(p => followingIds.includes(p.user_id));
+    }
+    
+    // Существующие фильтры
     if (currentFilter) {
       filtered = filtered.filter(p => p.type === currentFilter);
     }
@@ -692,6 +751,22 @@
         const author = users.find(u => u.id === p.user_id);
         return author && author.genres && author.genres.toLowerCase().includes(currentGenreFilter.toLowerCase());
       });
+    }
+    
+    // Сообщение, если в режиме подписок ничего нет
+    if (currentFeedMode === 'subscriptions' && filtered.length === 0 && followingIds.length === 0) {
+      container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-secondary);">🔔 Вы ни на кого не подписаны<br><small>Подпишитесь на музыкантов, чтобы видеть их посты здесь</small></div>';
+      return;
+    }
+    
+    if (currentFeedMode === 'subscriptions' && filtered.length === 0 && followingIds.length > 0) {
+      container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-secondary);">🔔 Новых постов от подписанных музыкантов пока нет</div>';
+      return;
+    }
+    
+    if (filtered.length === 0) {
+      container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-secondary);">Нет публикаций · создайте первую</div>';
+      return;
     }
     
     if (filtered.length === 0) {
@@ -809,6 +884,16 @@
         <div class="profile-name">${escapeHtml(currentUser.name)}</div>
         <div class="profile-bio">${escapeHtml(currentUser.instruments || '')} ${currentUser.instruments && currentUser.city ? '·' : ''} ${escapeHtml(currentUser.city || '')}</div>
         <div class="profile-rating">
+        <div class="profile-stats">
+          <div class="stat">
+            <strong>${currentUser.followers_count || 0}</strong>
+            <span>подписчиков</span>
+          </div>
+          <div class="stat">
+            <strong>${currentUser.following_count || 0}</strong>
+            <span>подписок</span>
+          </div>
+        </div>
           <i class="fa-solid fa-star rating-star"></i> <strong>${rating}</strong> <span style="font-size:12px;">очков репутации</span>
         </div>
         ${genreList.length > 0 ? `<div class="profile-genres">${genreList.map(g => `<span class="genre-badge">${escapeHtml(g)}</span>`).join('')}</div>` : ''}
@@ -1142,6 +1227,7 @@
   }
   
   // ========== ОСНОВНОЕ ПРИЛОЖЕНИЕ ==========
+  // ========== ОСНОВНОЕ ПРИЛОЖЕНИЕ ==========
   function renderMainApp() {
     const root = document.getElementById('appRoot');
     
@@ -1178,20 +1264,32 @@
             </svg>
           </button>
         </header>
+        
         <div class="main-content">
+          <!-- FEED SCREEN -->
           <div class="screen active" id="feedScreen">
+            <div class="feed-tabs">
+              <button class="feed-tab active" data-feed="subscriptions">
+                 Подписки
+              </button>
+              <button class="feed-tab" data-feed="all">
+                 Все посты
+              </button>
+            </div>
+            
             <div class="filters-bar">
               <span class="filter-badge work" data-type="work">${typeIcons.work}<span>вакансия</span></span>
               <span class="filter-badge gear" data-type="gear">${typeIcons.gear}<span>оборудование</span></span>
               <span class="filter-badge discourse" data-type="discourse">${typeIcons.discourse}<span>дискурс</span></span>
               <button class="reset-filter" id="resetFilterBtn">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M18 6 6 18"/>
-                <path d="m6 6 12 12"/>
-              </svg> 
-              всё 
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M18 6 6 18"/>
+                  <path d="m6 6 12 12"/>
+                </svg> 
+                всё 
               </button>
             </div>
+            
             ${genreList.length > 0 ? `
               <div class="genres-filter">
                 <span style="font-size:0.7rem; color:var(--text-secondary);">Фильтр по жанрам:</span>
@@ -1199,17 +1297,25 @@
                 ${genreList.map(g => `<button class="genre-filter-btn ${currentGenreFilter === g ? 'active' : ''}" data-genre="${escapeHtml(g)}">${escapeHtml(g)}</button>`).join('')}
               </div>
             ` : ''}
+            
             <div class="feed-list" id="feedList"></div>
           </div>
+          
+          <!-- SEARCH SCREEN -->
           <div class="screen" id="searchScreen"></div>
+          
+          <!-- PROFILE SCREEN -->
           <div class="screen" id="profileScreen"></div>
         </div>
+        
         <nav class="bottom-nav">
           <a href="#" class="nav-item active" data-screen="feed"><i class="fa-regular fa-rectangle-list nav-icon"></i><span>Лента</span></a>
           <a href="#" class="nav-item" data-screen="search"><i class="fa-regular fa-compass nav-icon"></i><span>Поиск</span></a>
           <a href="#" class="nav-item" data-screen="profile"><i class="fa-regular fa-user nav-icon"></i><span>Профиль</span></a>
         </nav>
+        
         <button class="fab" id="fabBtn">+</button>
+        
         <div class="modal" id="createModal">
           <div class="modal-card">
             <h3>Новая публикация</h3>
@@ -1221,7 +1327,7 @@
               <label>Демо (MP3, до 5 MB)</label>
               <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 12px;">
                 <label class="custom-file-upload">
-                   Выбрать файл
+                  Выбрать файл
                   <input type="file" id="postAudio" accept="audio/mpeg" style="display: none;">
                 </label>
                 <span id="audioFileName" class="file-name">Файл не выбран</span>
@@ -1231,71 +1337,69 @@
             <div class="modal-buttons"><button class="btn-secondary" id="cancelPost">Отмена</button><button class="btn-primary" id="submitPost">Опубликовать</button></div>
           </div>
         </div>
-        </div>
+        
         <div class="menu-overlay" id="menuOverlay"></div>
+        
         <div class="side-menu" id="sideMenu">
-                <div class="menu-item" data-action="profile">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                    <circle cx="12" cy="7" r="4"/>
-                  </svg>
-                  <span>Мой профиль</span>
-                </div>
-                
-                <div class="menu-item" data-action="invites">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                    <rect x="2" y="4" width="20" height="16" rx="2"/>
-                    <polyline points="22 7 12 13 2 7"/>
-                  </svg>
-                  <span>Приглашения</span>
-                </div>
-                
-                <div class="menu-item" data-action="notifications">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                    <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-                  </svg>
-                  <span>Уведомления</span>
-                </div>
-        
-                <!-- 🎨 ПЕРЕКЛЮЧАТЕЛЬ ТЕМЫ -->
-                  <div class="menu-item" id="themeMenuItem">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                      <circle cx="12" cy="12" r="5"/>
-                      <line x1="12" y1="1" x2="12" y2="3"/>
-                      <line x1="12" y1="21" x2="12" y2="23"/>
-                      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-                      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-                      <line x1="1" y1="12" x2="3" y2="12"/>
-                      <line x1="21" y1="12" x2="23" y2="12"/>
-                      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-                      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-                    </svg>
-                    <span>Тема: <span id="themeStatus">Светлая</span></span>
-                  </div>
-
-                  <div class="menu-item" data-action="about">
-                  <svg width="30" height="30" viewBox="0 0 228 260" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M114,82 L114,146" stroke="currentColor" stroke-width="20" fill="none" stroke-linecap="round"/>
-                  <path d="M114,178 L114,178" stroke="currentColor" stroke-width="20" fill="none" stroke-linecap="round"/>
-                  <path d="M50,50 L178,50 L178,210 L50,210 Z" stroke="currentColor" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-                  
-                  </svg> О проекте</div>
-                
-                <div style="margin: 16px 0; border-top: 1px solid var(--border-light);"></div>
-                
-                <div class="menu-item" data-action="logout">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                    <polyline points="16 17 21 12 16 7"/>
-                    <line x1="21" y1="12" x2="9" y2="12"/>
-                  </svg>
-                  <span>Выйти</span>
-                </div>
-              </div>
-              <div class="menu-overlay" id="menuOverlay"></div>
-            </div>
-        
+          <div class="menu-item" data-action="profile">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+            <span>Мой профиль</span>
+          </div>
+          
+          <div class="menu-item" data-action="invites">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <rect x="2" y="4" width="20" height="16" rx="2"/>
+              <polyline points="22 7 12 13 2 7"/>
+            </svg>
+            <span>Приглашения</span>
+          </div>
+          
+          <div class="menu-item" data-action="notifications">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+            <span>Уведомления</span>
+          </div>
+  
+          <div class="menu-item" id="themeMenuItem">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <circle cx="12" cy="12" r="5"/>
+              <line x1="12" y1="1" x2="12" y2="3"/>
+              <line x1="12" y1="21" x2="12" y2="23"/>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+              <line x1="1" y1="12" x2="3" y2="12"/>
+              <line x1="21" y1="12" x2="23" y2="12"/>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+            </svg>
+            <span>Тема: <span id="themeStatus">Светлая</span></span>
+          </div>
+  
+          <div class="menu-item" data-action="about">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="12" x2="12" y2="16"/>
+              <line x1="12" y1="8" x2="12.01" y2="8"/>
+            </svg>
+            <span>О проекте</span>
+          </div>
+          
+          <div style="margin: 16px 0; border-top: 1px solid var(--border-light);"></div>
+          
+          <div class="menu-item" data-action="logout">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+            <span>Выйти</span>
+          </div>
+        </div>
       </div>
     `;
     
@@ -1303,6 +1407,82 @@
     attachEvents();
     renderProfileScreen();
   }
+
+  // Загрузить список подписок текущего пользователя
+  async function loadFollowing() {
+    if (!currentUser) return;
+    try {
+      const response = await fetch(`${API_BASE}/follow/following/${currentUser.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        followingIds = data.map(u => u.id);
+        console.log('📋 Загружены подписки:', followingIds.length);
+      }
+    } catch (e) {
+      console.error('Ошибка загрузки подписок:', e);
+      followingIds = [];
+    }
+  }
+  
+  // Подписаться
+  async function followUser(userId) {
+    if (!currentUser) return false;
+    try {
+      const response = await fetch(`${API_BASE}/follow`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ follower_id: currentUser.id, following_id: userId })
+      });
+      if (response.ok) {
+        followingIds.push(userId);
+        // Обновляем счётчики в users
+        const userIndex = users.findIndex(u => u.id === userId);
+        if (userIndex !== -1) {
+          users[userIndex].followers_count = (users[userIndex].followers_count || 0) + 1;
+        }
+        if (currentUser.id === userId) {
+          currentUser.following_count = (currentUser.following_count || 0) + 1;
+        }
+        renderProfileScreen();
+        renderFeed();
+        return true;
+      }
+    } catch (e) {
+      console.error('Ошибка подписки:', e);
+    }
+    return false;
+  }
+  
+  // Отписаться
+  async function unfollowUser(userId) {
+    if (!currentUser) return false;
+    try {
+      const response = await fetch(`${API_BASE}/follow`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ follower_id: currentUser.id, following_id: userId })
+      });
+      if (response.ok) {
+        followingIds = followingIds.filter(id => id !== userId);
+        const userIndex = users.findIndex(u => u.id === userId);
+        if (userIndex !== -1) {
+          users[userIndex].followers_count = Math.max(0, (users[userIndex].followers_count || 0) - 1);
+        }
+        renderProfileScreen();
+        renderFeed();
+        return true;
+      }
+    } catch (e) {
+      console.error('Ошибка отписки:', e);
+    }
+    return false;
+  }
+  
+  // Проверить, подписан ли на пользователя
+  function isFollowing(userId) {
+    return followingIds.includes(userId);
+  }
+
   
   async function attachEvents() {
     const navItems = document.querySelectorAll('.nav-item');
@@ -1455,6 +1635,23 @@
         } else if (action === 'about') {
           window.location.href = 'about.html';
         }
+      });
+    });
+
+    // Переключение вкладок подписок
+    const feedTabs = document.querySelectorAll('.feed-tab');
+    feedTabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const mode = tab.getAttribute('data-feed');
+        if (mode === 'subscriptions') {
+          currentFeedMode = 'subscriptions';
+        } else {
+          currentFeedMode = 'all';
+        }
+        
+        feedTabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        renderFeed();
       });
     });
   }
@@ -2223,16 +2420,12 @@
         const existingUser = users.find(u => u.id === parsedUser.id);
         if (existingUser) {
           currentUser = existingUser;
+          await loadFollowing();
           renderMainApp();
           return;
-        } else {
-          localStorage.removeItem('backstage_current_user');
         }
-      } catch(e) {
-        localStorage.removeItem('backstage_current_user');
-      }
+      } catch(e) {}
     }
-    
     showAuthScreen();
   }
   

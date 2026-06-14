@@ -103,6 +103,29 @@ db.run(`CREATE TABLE IF NOT EXISTS comment_likes (
   UNIQUE(comment_id, user_id)
 )`);
 
+// Таблица подписок
+db.run(`CREATE TABLE IF NOT EXISTS follows (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  follower_id TEXT NOT NULL,
+  following_id TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  UNIQUE(follower_id, following_id)
+)`);
+
+// Добавляем счётчики в users (если нет)
+db.all("PRAGMA table_info(users)", (err, columns) => {
+  if (err) return console.error(err);
+  const columnNames = columns.map(c => c.name);
+  if (!columnNames.includes('followers_count')) {
+    db.run("ALTER TABLE users ADD COLUMN followers_count INTEGER DEFAULT 0");
+    console.log('✅ Добавлена колонка followers_count');
+  }
+  if (!columnNames.includes('following_count')) {
+    db.run("ALTER TABLE users ADD COLUMN following_count INTEGER DEFAULT 0");
+    console.log('✅ Добавлена колонка following_count');
+  }
+});
+
 console.log('✅ Таблицы timeline_comments и comment_likes готовы');
 
 // Автоматическое добавление колонок, если их нет
@@ -156,7 +179,7 @@ app.put('/api/invites/:code/use', (req, res) => {
 
 // ========== API ПОЛЬЗОВАТЕЛЕЙ ==========
 app.get('/api/users', (req, res) => {
-  db.all("SELECT id, email, name, instruments, city, about, genres, rating, created_at FROM users", (err, rows) => {
+  db.all("SELECT id, email, name, instruments, city, about, genres, rating, created_at, followers_count, following_count FROM users", (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
@@ -164,7 +187,7 @@ app.get('/api/users', (req, res) => {
 
 app.get('/api/users/:id', (req, res) => {
   const { id } = req.params;
-  db.get("SELECT id, email, name, instruments, city, about, genres, rating, created_at FROM users WHERE id = ?", [id], (err, row) => {
+  db.get("SELECT id, email, name, instruments, city, about, genres, rating, created_at, followers_count, following_count FROM users WHERE id = ?", [id], (err, row) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!row) return res.status(404).json({ error: 'Пользователь не найден' });
     res.json(row);
@@ -476,6 +499,108 @@ app.post('/api/comment-likes/:commentId', (req, res) => {
       });
     }
   });
+});
+
+// ========== API ПОДПИСОК ==========
+
+// Подписаться
+app.post('/api/follow', (req, res) => {
+  const { follower_id, following_id } = req.body;
+  
+  if (!follower_id || !following_id) {
+    return res.status(400).json({ error: 'Не указаны ID' });
+  }
+  
+  if (follower_id === following_id) {
+    return res.status(400).json({ error: 'Нельзя подписаться на себя' });
+  }
+  
+  db.run(
+    `INSERT INTO follows (follower_id, following_id, created_at) VALUES (?, ?, ?)`,
+    [follower_id, following_id, Date.now()],
+    function(err) {
+      if (err) {
+        if (err.message.includes('UNIQUE')) {
+          return res.status(400).json({ error: 'Уже подписан' });
+        }
+        return res.status(500).json({ error: err.message });
+      }
+      
+      // Обновляем счётчики
+      db.run(`UPDATE users SET followers_count = followers_count + 1 WHERE id = ?`, [following_id]);
+      db.run(`UPDATE users SET following_count = following_count + 1 WHERE id = ?`, [follower_id]);
+      
+      res.json({ success: true, action: 'follow' });
+    }
+  );
+});
+
+// Отписаться
+app.delete('/api/follow', (req, res) => {
+  const { follower_id, following_id } = req.body;
+  
+  db.run(
+    `DELETE FROM follows WHERE follower_id = ? AND following_id = ?`,
+    [follower_id, following_id],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      
+      if (this.changes > 0) {
+        db.run(`UPDATE users SET followers_count = followers_count - 1 WHERE id = ?`, [following_id]);
+        db.run(`UPDATE users SET following_count = following_count - 1 WHERE id = ?`, [follower_id]);
+      }
+      
+      res.json({ success: true, action: 'unfollow' });
+    }
+  );
+});
+
+// Проверить, подписан ли
+app.get('/api/follow/check', (req, res) => {
+  const { follower_id, following_id } = req.query;
+  
+  db.get(
+    `SELECT 1 FROM follows WHERE follower_id = ? AND following_id = ?`,
+    [follower_id, following_id],
+    (err, row) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ isFollowing: !!row });
+    }
+  );
+});
+
+// Получить подписки пользователя (на кого подписан)
+app.get('/api/follow/following/:userId', (req, res) => {
+  const { userId } = req.params;
+  
+  db.all(
+    `SELECT u.id, u.name, u.instruments, u.city, u.genres 
+     FROM follows f
+     JOIN users u ON f.following_id = u.id
+     WHERE f.follower_id = ?`,
+    [userId],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(rows);
+    }
+  );
+});
+
+// Получить подписчиков пользователя
+app.get('/api/follow/followers/:userId', (req, res) => {
+  const { userId } = req.params;
+  
+  db.all(
+    `SELECT u.id, u.name, u.instruments, u.city, u.genres 
+     FROM follows f
+     JOIN users u ON f.follower_id = u.id
+     WHERE f.following_id = ?`,
+    [userId],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(rows);
+    }
+  );
 });
 
 app.listen(port, () => {
