@@ -326,6 +326,92 @@
       if (e.target === modal) modal.remove();
     });
   }
+
+  // Модальное окно для публичного обсуждения
+  function showDiscussModal(postId, postTitle) {
+    const modal = document.createElement('div');
+    modal.className = 'chat-modal';
+    modal.innerHTML = `
+      <div class="chat-modal-card" style="max-width: 500px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <h3 style="margin: 0;">
+            <i class="fa-regular fa-comments"></i> Обсуждение
+          </h3>
+          <button class="discuss-modal-close" style="background: none; border: none; font-size: 20px; cursor: pointer;">&times;</button>
+        </div>
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">
+          Обсуждаем: <strong>${escapeHtml(postTitle)}</strong>
+        </p>
+        
+        <div id="discussMessagesList" style="max-height: 300px; overflow-y: auto; margin-bottom: 16px; padding: 8px; background: #f8f4ef; border-radius: 16px;">
+          <div style="text-align: center; padding: 20px; color: var(--text-secondary);">
+            <i class="fa-regular fa-spinner fa-pulse"></i> Загрузка обсуждения...
+          </div>
+        </div>
+        
+        <div style="display: flex; gap: 10px;">
+          <textarea id="discussMessage" rows="2" placeholder="Напишите своё мнение, вопрос или предложение..." style="flex: 1; padding: 10px; border-radius: 16px; border: 1px solid var(--border-light); font-family: inherit; resize: vertical;"></textarea>
+          <button id="sendDiscussBtn" class="btn-primary" style="align-self: flex-end; padding: 10px 18px;">Отправить</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    
+    // Закрытие
+    const closeBtn = modal.querySelector('.discuss-modal-close');
+    const closeModal = () => modal.remove();
+    closeBtn.onclick = closeModal;
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+    
+    // Загружаем существующие обсуждения (пока просто заглушка)
+    const messagesContainer = modal.querySelector('#discussMessagesList');
+    messagesContainer.innerHTML = `
+      <div style="padding: 12px;">
+        <div style="margin-bottom: 12px; padding: 8px; background: white; border-radius: 12px;">
+          <strong style="color: var(--accent);">Система</strong>
+          <p style="font-size: 13px; margin-top: 4px;">💡 Здесь будут публичные комментарии всех участников. Обсуждайте трек, задавайте вопросы автору, делитесь идеями!</p>
+        </div>
+      </div>
+    `;
+    
+    // Отправка сообщения
+    const textarea = modal.querySelector('#discussMessage');
+    const sendBtn = modal.querySelector('#sendDiscussBtn');
+    
+    const sendMessage = () => {
+      const message = textarea.value.trim();
+      if (!message) {
+        alert('Введите сообщение');
+        return;
+      }
+      
+      // Добавляем сообщение в список (временно, пока нет бэкенда)
+      const messageDiv = document.createElement('div');
+      messageDiv.style.cssText = 'margin-bottom: 12px; padding: 10px; background: white; border-radius: 12px;';
+      messageDiv.innerHTML = `
+        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+          <strong style="color: var(--accent);">${escapeHtml(currentUser?.name || 'Участник')}</strong>
+          <span style="font-size: 10px; color: var(--text-secondary);">только что</span>
+        </div>
+        <p style="font-size: 13px; margin: 0;">${escapeHtml(message)}</p>
+      `;
+      
+      messagesContainer.appendChild(messageDiv);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      textarea.value = '';
+      
+      // TODO: Сохранять на сервер
+      console.log(`💬 Обсуждение поста ${postId}: ${message}`);
+    };
+    
+    sendBtn.onclick = sendMessage;
+    textarea.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        sendMessage();
+      }
+    });
+  }
   
   // ========== ПРОСМОТР ПРОФИЛЯ ПОЛЬЗОВАТЕЛЯ ==========
   function viewUserProfile(userId) {
@@ -781,30 +867,36 @@
       container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-secondary);">Нет публикаций · создайте первую</div>';
       return;
     }
-    
-    container.innerHTML = filtered.map(post => {
-      const authorName = getAuthorName(post.user_id);
-      const hasAudio = post.audio_url && post.audio_url !== '';
+
       
-      return `
-        <div class="post-card">
-          <div class="post-header">
-            ${getBadgeHTML(post.type)}
-            <span class="verified-mark clickable-name" data-user-id="${post.user_id}">${escapeHtml(authorName)} · проверен</span>
+      container.innerHTML = filtered.map(post => {
+        const authorName = getAuthorName(post.user_id);
+        const hasAudio = post.audio_url && post.audio_url !== '';
+        
+        return `
+          <div class="post-card">
+            <div class="post-header">
+              ${getBadgeHTML(post.type)}
+              <span class="verified-mark clickable-name" data-user-id="${post.user_id}">${escapeHtml(authorName)} · проверен</span>
+            </div>
+            <div class="post-title">${escapeHtml(post.title)}</div>
+            <div class="post-meta">${formatDate(post.created_at)}</div>
+            <div class="post-desc">${escapeHtml(post.description)}</div>
+            ${hasAudio ? `
+              <div class="timeline-placeholder" data-post-id="${post.id}" data-audio-url="${post.audio_url}"></div>
+            ` : ''}
+            <hr />
+            <div class="post-actions">
+              <div class="chat-action" data-author-id="${post.user_id}" data-author-name="${escapeHtml(authorName)}">
+                <i class="fa-regular fa-message"></i> Написать в чат
+              </div>
+              <div class="discuss-action" data-post-id="${post.id}" data-post-title="${escapeHtml(post.title)}">
+                <i class="fa-regular fa-comments"></i> Обсудить
+              </div>
+            </div>
           </div>
-          <div class="post-title">${escapeHtml(post.title)}</div>
-          <div class="post-meta">${formatDate(post.created_at)}</div>
-          <div class="post-desc">${escapeHtml(post.description)}</div>
-          ${hasAudio ? `
-            <div class="timeline-placeholder" data-post-id="${post.id}" data-audio-url="${post.audio_url}"></div>
-          ` : ''}
-          <hr />
-          <div class="chat-action" data-author-id="${post.user_id}" data-author-name="${escapeHtml(authorName)}">
-            <i class="fa-regular fa-message"></i> Написать в чат
-          </div>
-        </div>
-      `;
-    }).join('');
+        `;
+      }).join('');
     
     
     document.querySelectorAll('.chat-action').forEach(el => {
@@ -813,6 +905,15 @@
         const authorId = el.getAttribute('data-author-id');
         const authorName = el.getAttribute('data-author-name');
         showChatModal(authorId, authorName);
+      });
+    });
+
+    document.querySelectorAll('.discuss-action').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const postId = el.getAttribute('data-post-id');
+        const postTitle = el.getAttribute('data-post-title');
+        showDiscussModal(postId, postTitle);
       });
     });
     

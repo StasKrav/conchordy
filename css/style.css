@@ -2195,3 +2195,43 @@ textarea#restoreCodeInput {
   font-size: 12px;
   color: var(--accent);
 }
+
+/* ===== КНОПКИ ПОСТА ===== */
+.post-actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.chat-action,
+.discuss-action {
+  font-size: 0.75rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 30px;
+  transition: all 0.2s;
+}
+
+.chat-action {
+  color: var(--accent);
+  background: rgba(217, 108, 74, 0.08);
+}
+
+.chat-action:hover {
+  background: rgba(217, 108, 74, 0.15);
+  transform: scale(1.02);
+}
+
+.discuss-action {
+  color: #2f6b47;
+  background: rgba(47, 107, 71, 0.08);
+}
+
+.discuss-action:hover {
+  background: rgba(47, 107, 71, 0.15);
+  transform: scale(1.02);
+}
