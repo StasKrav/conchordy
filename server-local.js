@@ -59,6 +59,33 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log('🔌 Отключение:', socket.id);
   });
+
+  // WebRTC сигнализация
+  socket.on('webrtc-offer', ({ roomId, signal }) => {
+    console.log(`📡 WebRTC offer от ${socket.userId} в комнату ${roomId}`);
+    socket.to(roomId).emit('webrtc-offer', { signal, from: socket.userId });
+  });
+  
+  socket.on('webrtc-answer', ({ roomId, signal }) => {
+    console.log(`📡 WebRTC answer от ${socket.userId} в комнату ${roomId}`);
+    socket.to(roomId).emit('webrtc-answer', { signal, from: socket.userId });
+  });
+  
+  socket.on('webrtc-ice-candidate', ({ roomId, candidate }) => {
+    socket.to(roomId).emit('webrtc-ice-candidate', { candidate, from: socket.userId });
+  });
+  
+  // Запрос на трансляцию (хост начинает вещать)
+  socket.on('start-broadcast', (roomId) => {
+    console.log(`🎙️ Хост ${socket.userId} начал трансляцию в комнате ${roomId}`);
+    socket.to(roomId).emit('broadcast-started');
+  });
+  
+  // Остановка трансляции
+  socket.on('stop-broadcast', (roomId) => {
+    console.log(`🔇 Хост ${socket.userId} остановил трансляцию в комнате ${roomId}`);
+    socket.to(roomId).emit('broadcast-stopped');
+  });
 });
 
 // Запускаем проверку каждые 5 минут

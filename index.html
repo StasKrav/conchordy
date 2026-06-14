@@ -7,6 +7,7 @@
   <title>ChiusoCLub — закрытое сообщество музыкантов</title>
   <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/simple-peer@9.11.1/simplepeer.min.js"></script>
   <!-- WaveSurfer.js для визуализации аудио -->
   <script src="https://unpkg.com/wavesurfer.js@7.4.0/dist/wavesurfer.min.js"></script>
   <!-- Socket.io для реального времени -->
@@ -2869,8 +2870,72 @@
       currentSocket.emit('join-room', roomId, currentUser.id, currentUser.name);
     });
     
+    // Обработка сигналов WebRTC
+    currentSocket.on('webrtc-offer', async (data) => {
+      if (!isHost && data.targetId === currentUser.id) {
+        console.log('📡 Получен offer, создаём answer');
+        
+        const peer = new SimplePeer({ trickle: false });
+        
+        peer.on('signal', (signalData) => {
+          currentSocket.emit('webrtc-answer', {
+            roomId: roomId,
+            signal: signalData,
+            targetId: data.from
+          });
+        });
+        
+        peer.on('stream', (stream) => {
+          console.log('🎧 Аудио поток получен!');
+          const audio = new Audio();
+          audio.srcObject = stream;
+          audio.autoplay = true;
+          audio.volume = 0.8;
+          
+          const audioStatus = document.getElementById('audioStatus');
+          if (audioStatus) {
+            audioStatus.innerHTML = '<i class="fa-solid fa-headphones"></i> 🎵 Трансляция идёт';
+            audioStatus.style.color = '#2f6b47';
+          }
+        });
+        
+        peer.signal(data.signal);
+        peerInstances.set('listener', peer);
+      }
+    });
+    
+    currentSocket.on('webrtc-answer', (data) => {
+      if (isHost && data.targetId === currentUser.id) {
+        console.log('📡 Получен answer');
+        const peer = peerInstances.get(data.from);
+        if (peer) {
+          peer.signal(data.signal);
+        }
+      }
+    });
+    
+    currentSocket.on('broadcast-started', () => {
+      if (!isHost) {
+        console.log('🎙️ Трансляция начата, соединяемся...');
+        joinBroadcast(currentRoom.host_id);
+      }
+    });
+    
+    currentSocket.on('broadcast-stopped', () => {
+      if (!isHost) {
+        console.log('🔇 Трансляция остановлена');
+        leaveBroadcast();
+      }
+    });
+    
+    currentSocket.on('listener-ready', (data) => {
+      if (isHost && isBroadcasting) {
+        console.log(`👂 Новый слушатель: ${data.userName}, создаём peer`);
+        createPeerForListener(data.userId, data.userName);
+      }
+    });
+    
     currentSocket.on('new-chat-message', (data) => {
-      // Показываем сообщение, только если оно НЕ от текущего пользователя
       if (data.user_id !== currentUser.id) {
         addRoomMessageToUI(data);
       }
@@ -2883,6 +2948,11 @@
     currentSocket.on('user-joined', (data) => {
       addSystemMessageToUI(`${data.userName} присоединился к концерту`);
       updateRoomListenersCount();
+      
+      // Если хост уже вещает, сообщаем новому слушателю
+      if (isHost && isBroadcasting && currentSocket) {
+        currentSocket.emit('listener-ready', { userId: data.userId, userName: data.userName });
+      }
     });
     
     currentSocket.on('user-left', (data) => {
@@ -2926,6 +2996,30 @@
           </div>
           ${!isHost ? `<button class="donate-btn" id="donateBtn"><i class="fa-regular fa-heart"></i> Поддержать</button>` : ''}
         </div>
+
+        <div class="audio-controls">
+          ${isHost ? `
+            <div class="room-controls-row">
+              <button id="startBroadcastBtn" class="room-control-btn room-control-start">
+                <i class="fa-solid fa-microphone"></i> Начать эфир
+              </button>
+              <button id="pauseBroadcastBtn" class="room-control-btn room-control-pause" disabled>
+                <i class="fa-solid fa-microphone-slash"></i> Пауза
+              </button>
+              <button id="endRoomBtn" class="room-control-btn room-control-end">
+                <i class="fa-regular fa-circle-xmark"></i> Завершить эфир
+              </button>
+            </div>
+          ` : ''}
+        ${isHost ? `
+          <div class="mic-test-indicator" id="micTestIndicator" style="display: none;">
+            <i class="fa-solid fa-waveform"></i>
+            <span>Тест микрофона</span>
+            <div class="volume-indicator">
+              <div class="volume-level" id="volumeLevel"></div>
+            </div>
+          </div>
+        ` : ''}
         
         <div class="room-chat">
           <div class="room-chat-messages" id="roomChatMessages"></div>
@@ -2934,17 +3028,6 @@
             <button id="roomChatSendBtn"><i class="fa-regular fa-paper-plane"></i></button>
           </div>
         </div>
-        
-        ${isHost ? `
-          <div style="margin-top: 16px; display: flex; flex-direction: column; gap: 12px;">
-            <button id="startRoomBtn" class="room-control-btn room-control-start">
-              Начать эфир
-            </button>
-            <button id="endRoomBtn" class="room-control-btn room-control-end">
-              Завершить концерт
-            </button>
-          </div>
-        ` : ''}
       </div>
     `;
     
@@ -3057,6 +3140,25 @@
           alert('Ошибка соединения');
         }
       };
+    }
+
+    // Аудио-кнопки
+    if (isHost) {
+      const testMicBtn = document.querySelector('.audio-btn-test');
+      const startBroadcastBtn = document.getElementById('startBroadcastBtn');
+      const stopBroadcastBtn = document.getElementById('stopBroadcastBtn');
+      
+      if (testMicBtn) {
+        testMicBtn.onclick = () => testMicrophone();
+      }
+      
+      if (startBroadcastBtn) {
+        startBroadcastBtn.onclick = () => startBroadcast(room.id);
+      }
+      
+      if (stopBroadcastBtn) {
+        stopBroadcastBtn.onclick = () => stopBroadcast();
+      }
     }
   }
   
@@ -3214,6 +3316,211 @@
     };
   }
 
+  // ========== АУДИО-ФУНКЦИИ ДЛЯ КОМНАТ ==========
+  
+  let localStream = null;
+  let peerInstances = new Map(); // peerId -> peer instance
+  let isBroadcasting = false;
+  
+  // Проверка поддержки браузером
+  function isAudioSupported() {
+    return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+  }
+  
+  // Тест микрофона
+  async function testMicrophone() {
+    if (!isAudioSupported()) {
+      alert('Ваш браузер не поддерживает WebRTC');
+      return false;
+    }
+    
+    const indicator = document.getElementById('micTestIndicator');
+    if (indicator) indicator.style.display = 'flex';
+    
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const audioContext = new AudioContext();
+      const source = audioContext.createMediaStreamSource(stream);
+      const analyser = audioContext.createAnalyser();
+      source.connect(analyser);
+      
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      const volumeLevel = document.getElementById('volumeLevel');
+      
+      function updateVolume() {
+        analyser.getByteTimeDomainData(dataArray);
+        let max = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          const v = Math.abs(dataArray[i] - 128) / 128;
+          if (v > max) max = v;
+        }
+        if (volumeLevel) volumeLevel.style.width = (max * 100) + '%';
+        if (!isBroadcasting) requestAnimationFrame(updateVolume);
+      }
+      updateVolume();
+      
+      // Проигрываем для проверки
+      const audio = new Audio();
+      audio.srcObject = stream;
+      await audio.play();
+      
+      setTimeout(() => {
+        audio.pause();
+        if (!isBroadcasting) {
+          stream.getTracks().forEach(track => track.stop());
+          if (indicator) indicator.style.display = 'none';
+          if (volumeLevel) volumeLevel.style.width = '0%';
+        }
+      }, 3000);
+      
+      return true;
+    } catch (e) {
+      console.error('Ошибка теста микрофона:', e);
+      alert('Не удалось получить доступ к микрофону. Проверьте разрешения.');
+      if (indicator) indicator.style.display = 'none';
+      return false;
+    }
+  }
+  
+  // Начать трансляцию (хост)
+  // Начать эфир (включаем микрофон и делаем комнату LIVE)
+  async function startBroadcast(roomId) {
+    // 1. Получаем доступ к микрофону
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    
+    // 2. Переводим комнату в статус LIVE
+    await fetch(`${API_BASE}/live-rooms/${roomId}/start`, { method: 'PUT' });
+    
+    // 3. Уведомляем всех через сокет
+    currentSocket.emit('start-broadcast', roomId);
+    
+    // 4. Обновляем UI
+    startBtn.disabled = true;
+    pauseBtn.disabled = false;
+    
+    isBroadcasting = true;
+  }
+  
+  // Пауза (выключаем микрофон, комната остаётся LIVE)
+  function pauseBroadcast() {
+    if (localStream) {
+      localStream.getTracks().forEach(track => track.stop());
+      localStream = null;
+    }
+    
+    currentSocket.emit('pause-broadcast', currentRoom.id);
+    
+    startBtn.disabled = false;
+    pauseBtn.disabled = true;
+    isBroadcasting = false;
+  }
+  
+  // Завершить эфир (закрываем комнату)
+  async function endBroadcast() {
+    if (localStream) {
+      localStream.getTracks().forEach(track => track.stop());
+    }
+    
+    await fetch(`${API_BASE}/live-rooms/${currentRoom.id}/end`, { method: 'PUT' });
+    currentSocket.emit('end-broadcast', currentRoom.id);
+    
+    setActiveScreen('feed');
+    renderFeed();
+  }
+  
+  // Создать peer-соединение для слушателя (вызывается у хоста)
+  function createPeerForListener(listenerId, listenerName) {
+    if (!localStream || !isBroadcasting) return;
+    
+    console.log(`🔗 Создаём peer для слушателя ${listenerName} (${listenerId})`);
+    
+    const peer = new SimplePeer({
+      initiator: true,
+      stream: localStream,
+      trickle: false
+    });
+    
+    peer.on('signal', (signalData) => {
+      if (currentSocket && currentRoom) {
+        currentSocket.emit('webrtc-offer', {
+          roomId: currentRoom.id,
+          signal: signalData,
+          targetId: listenerId
+        });
+      }
+    });
+    
+    peer.on('error', (err) => {
+      console.error(`Peer ошибка (${listenerId}):`, err);
+    });
+    
+    peer.on('close', () => {
+      console.log(`Peer закрыт (${listenerId})`);
+      peerInstances.delete(listenerId);
+    });
+    
+    peerInstances.set(listenerId, peer);
+  }
+  
+  // Присоединиться к трансляции (слушатель)
+  async function joinBroadcast(hostId) {
+    console.log(`🎧 Слушатель ${currentUser.name} присоединяется к трансляции хоста ${hostId}`);
+    
+    const peer = new SimplePeer({ trickle: false });
+    
+    peer.on('signal', (signalData) => {
+      if (currentSocket && currentRoom) {
+        currentSocket.emit('webrtc-answer', {
+          roomId: currentRoom.id,
+          signal: signalData,
+          targetId: hostId
+        });
+      }
+    });
+    
+    peer.on('stream', (stream) => {
+      console.log('🎧 Получен аудиопоток от хоста');
+      const audio = new Audio();
+      audio.srcObject = stream;
+      audio.autoplay = true;
+      audio.volume = 0.8;
+      
+      // Обновляем UI
+      const audioStatus = document.getElementById('audioStatus');
+      if (audioStatus) {
+        audioStatus.innerHTML = '<i class="fa-solid fa-headphones"></i> 🎵 Слушаем трансляцию';
+        audioStatus.style.color = '#2f6b47';
+      }
+    });
+    
+    peer.on('error', (err) => {
+      console.error('Ошибка peer:', err);
+      const audioStatus = document.getElementById('audioStatus');
+      if (audioStatus) {
+        audioStatus.innerHTML = '<i class="fa-regular fa-circle-exclamation"></i> Ошибка подключения';
+      }
+    });
+    
+    peer.on('close', () => {
+      console.log('Peer соединение закрыто');
+      const audioStatus = document.getElementById('audioStatus');
+      if (audioStatus) {
+        audioStatus.innerHTML = '<i class="fa-regular fa-headphones"></i> Трансляция остановлена';
+        audioStatus.style.color = 'var(--text-secondary)';
+      }
+    });
+    
+    peerInstances.set('listener', peer);
+  }
+  
+  // Остановить прослушивание (слушатель)
+  function leaveBroadcast() {
+    const peer = peerInstances.get('listener');
+    if (peer) {
+      peer.destroy();
+      peerInstances.delete('listener');
+    }
+  }
   
   // ========== СТАРТ ==========
   async function startApp() {
