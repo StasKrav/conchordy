@@ -327,36 +327,178 @@
     });
   }
 
-  // Модальное окно для публичного обсуждения
-  function showDiscussModal(postId, postTitle) {
-    const modal = document.createElement('div');
-    modal.className = 'chat-modal';
-    modal.innerHTML = `
-      <div class="chat-modal-card" style="max-width: 500px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-          <h3 style="margin: 0;">
-            <i class="fa-regular fa-comments"></i> Обсуждение
-          </h3>
-          <button class="discuss-modal-close" style="background: none; border: none; font-size: 20px; cursor: pointer;">&times;</button>
-        </div>
-        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">
-          Обсуждаем: <strong>${escapeHtml(postTitle)}</strong>
-        </p>
-        
-        <div id="discussMessagesList" style="max-height: 300px; overflow-y: auto; margin-bottom: 16px; padding: 8px; background: #f8f4ef; border-radius: 16px;">
-          <div style="text-align: center; padding: 20px; color: var(--text-secondary);">
-            <i class="fa-regular fa-spinner fa-pulse"></i> Загрузка обсуждения...
+  // Модальное окно подтверждения
+  function showConfirmModal(options) {
+    const { title, message, confirmText, cancelText, onConfirm, onCancel } = options;
+    
+    const overlay = document.createElement('div');
+    overlay.className = 'confirm-modal-overlay';
+    overlay.innerHTML = `
+      <div class="confirm-modal">
+        <div class="confirm-modal-header">
+          <div class="confirm-modal-title">
+            <i class="fa-regular fa-circle-question"></i>
+            <span>${escapeHtml(title || 'Подтверждение')}</span>
           </div>
         </div>
+        <div class="confirm-modal-body">
+          <p>${escapeHtml(message || 'Вы уверены?')}</p>
+        </div>
+        <div class="confirm-modal-footer">
+          <button class="confirm-modal-cancel">${escapeHtml(cancelText || 'Отмена')}</button>
+          <button class="confirm-modal-ok">${escapeHtml(confirmText || 'Удалить')}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    
+    const closeModal = () => overlay.remove();
+    
+    overlay.querySelector('.confirm-modal-cancel').onclick = () => {
+      closeModal();
+      if (onCancel) onCancel();
+    };
+    
+    overlay.querySelector('.confirm-modal-ok').onclick = () => {
+      closeModal();
+      if (onConfirm) onConfirm();
+    };
+    
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closeModal();
+    });
+  }
+
+  // Модальное окно для публичного обсуждения
+  async function showDiscussModal(postId, postTitle) {
+    // Загружаем существующие сообщения
+    let discussions = [];
+    try {
+      const response = await fetch(`${API_BASE}/post-discussions/${postId}`);
+      if (response.ok) {
+        discussions = await response.json();
+        console.log(`💬 Загружено ${discussions.length} сообщений для поста ${postId}`);
+      }
+    } catch (e) {
+      console.error('Ошибка загрузки обсуждений:', e);
+    }
+    
+    const modal = document.createElement('div');
+    modal.className = 'discuss-modal-overlay';
+    modal.innerHTML = `
+      <div class="discuss-modal">
+        <div class="discuss-modal-header">
+          <div class="discuss-modal-title">
+            <i class="fa-regular fa-comments"></i>
+            <span>Обсуждение</span>
+          </div>
+          <button class="discuss-modal-close">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                              <path d="M18 6 6 18"/>
+                              <path d="m6 6 12 12"/>
+                            </svg>
+          </button>
+        </div>
         
-        <div style="display: flex; gap: 10px;">
-          <textarea id="discussMessage" rows="2" placeholder="Напишите своё мнение, вопрос или предложение..." style="flex: 1; padding: 10px; border-radius: 16px; border: 1px solid var(--border-light); font-family: inherit; resize: vertical;"></textarea>
-          <button id="sendDiscussBtn" class="btn-primary" style="align-self: flex-end; padding: 10px 18px;">Отправить</button>
+        <div class="discuss-modal-post-info">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+            <polyline points="22 6 12 13 2 6"/>
+          </svg>
+          <span>${escapeHtml(postTitle)}</span>
+        </div>
+        
+        <div class="discuss-modal-messages" id="discussMessagesList"></div>
+        
+        <div class="discuss-modal-footer">
+          <textarea id="discussMessage" rows="3" placeholder="Напишите своё мнение, вопрос или предложение..."></textarea>
+          <button id="sendDiscussBtn" class="discuss-send-btn">
+            <i class="fa-regular fa-paper-plane"></i> Отправить
+          </button>
         </div>
       </div>
     `;
     document.body.appendChild(modal);
-    modal.style.display = 'flex';
+    
+    // Рендерим сообщения
+    const messagesContainer = modal.querySelector('#discussMessagesList');
+    
+    function renderMessages() {
+      if (discussions.length === 0) {
+        messagesContainer.innerHTML = `
+          <div class="discuss-message system">
+            <div class="discuss-message-avatar">
+            </div>
+            <div class="discuss-message-content">
+              <div class="discuss-message-text">Здесь будут публичные комментарии всех участников. Обсуждайте трек, задавайте вопросы автору, делитесь идеями!</div>
+            </div>
+          </div>
+        `;
+        return;
+      }
+      
+      messagesContainer.innerHTML = discussions.map(msg => {
+        const isCurrentUser = currentUser && msg.user_id === currentUser.id;
+        return `
+          <div class="discuss-message ${isCurrentUser ? 'my-message' : ''}" data-message-id="${msg.id}">
+            <div class="discuss-message-avatar">
+              <div class="default-avatar-small">${(msg.user_name || '?').charAt(0)}</div>
+            </div>
+            <div class="discuss-message-content">
+              <div class="discuss-message-author">
+                ${escapeHtml(msg.user_name || 'Участник')}
+                <span class="discuss-message-time">${formatMessageTime(msg.created_at)}</span>
+                ${isCurrentUser ? `
+                  <button class="discuss-message-delete" data-message-id="${msg.id}" title="Удалить сообщение">
+                    <i class="fa-regular fa-trash-can"></i>
+                  </button>
+                ` : ''}
+              </div>
+              <div class="discuss-message-text">${escapeHtml(msg.message)}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      // Добавляем обработчики для кнопок удаления
+      messagesContainer.querySelectorAll('.discuss-message-delete').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const messageId = btn.getAttribute('data-message-id');
+          
+          showConfirmModal({
+            title: 'Удаление сообщения',
+            message: 'Вы уверены, что хотите удалить это сообщение?',
+            confirmText: 'Удалить',
+            cancelText: 'Отмена',
+            onConfirm: async () => {
+              try {
+                const response = await fetch(`${API_BASE}/post-discussions/${messageId}`, {
+                  method: 'DELETE',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ user_id: currentUser.id })
+                });
+                
+                if (response.ok) {
+                  discussions = discussions.filter(m => m.id != messageId);
+                  renderMessages();
+                } else {
+                  const error = await response.json();
+                  alert('Ошибка: ' + (error.error || 'Не удалось удалить'));
+                }
+              } catch (e) {
+                console.error('Ошибка удаления:', e);
+                alert('Ошибка соединения');
+              }
+            }
+          });
+        });
+      });
+      
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+    
+    renderMessages();
     
     // Закрытие
     const closeBtn = modal.querySelector('.discuss-modal-close');
@@ -364,45 +506,52 @@
     closeBtn.onclick = closeModal;
     modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
     
-    // Загружаем существующие обсуждения (пока просто заглушка)
-    const messagesContainer = modal.querySelector('#discussMessagesList');
-    messagesContainer.innerHTML = `
-      <div style="padding: 12px;">
-        <div style="margin-bottom: 12px; padding: 8px; background: white; border-radius: 12px;">
-          <strong style="color: var(--accent);">Система</strong>
-          <p style="font-size: 13px; margin-top: 4px;">💡 Здесь будут публичные комментарии всех участников. Обсуждайте трек, задавайте вопросы автору, делитесь идеями!</p>
-        </div>
-      </div>
-    `;
-    
     // Отправка сообщения
     const textarea = modal.querySelector('#discussMessage');
     const sendBtn = modal.querySelector('#sendDiscussBtn');
     
-    const sendMessage = () => {
+    const sendMessage = async () => {
       const message = textarea.value.trim();
       if (!message) {
-        alert('Введите сообщение');
+        textarea.style.borderColor = '#c2410c';
+        textarea.placeholder = 'Пожалуйста, напишите сообщение';
+        setTimeout(() => {
+          textarea.style.borderColor = '';
+          textarea.placeholder = 'Напишите своё мнение, вопрос или предложение...';
+        }, 2000);
         return;
       }
       
-      // Добавляем сообщение в список (временно, пока нет бэкенда)
-      const messageDiv = document.createElement('div');
-      messageDiv.style.cssText = 'margin-bottom: 12px; padding: 10px; background: white; border-radius: 12px;';
-      messageDiv.innerHTML = `
-        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-          <strong style="color: var(--accent);">${escapeHtml(currentUser?.name || 'Участник')}</strong>
-          <span style="font-size: 10px; color: var(--text-secondary);">только что</span>
-        </div>
-        <p style="font-size: 13px; margin: 0;">${escapeHtml(message)}</p>
-      `;
+      if (!currentUser) {
+        alert('Войдите в аккаунт, чтобы участвовать в обсуждении');
+        return;
+      }
       
-      messagesContainer.appendChild(messageDiv);
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
-      textarea.value = '';
-      
-      // TODO: Сохранять на сервер
-      console.log(`💬 Обсуждение поста ${postId}: ${message}`);
+      try {
+        const response = await fetch(`${API_BASE}/post-discussions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            post_id: postId,
+            user_id: currentUser.id,
+            message: message
+          })
+        });
+        
+        if (response.ok) {
+          const newMessage = await response.json();
+          discussions.push(newMessage);
+          renderMessages();
+          textarea.value = '';
+          textarea.style.height = 'auto';
+        } else {
+          const error = await response.json();
+          alert('Ошибка: ' + (error.error || 'Не удалось отправить сообщение'));
+        }
+      } catch (e) {
+        console.error('Ошибка отправки:', e);
+        alert('Ошибка соединения');
+      }
     };
     
     sendBtn.onclick = sendMessage;
@@ -411,6 +560,25 @@
         sendMessage();
       }
     });
+    
+    // Автоматический рост текстового поля
+    textarea.addEventListener('input', function() {
+      this.style.height = 'auto';
+      this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    });
+  }
+  
+  // Вспомогательная функция форматирования времени для сообщений
+  function formatMessageTime(timestamp) {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now - date;
+    
+    if (diff < 60000) return 'только что';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)} мин назад`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)} ч назад`;
+    if (diff < 604800000) return `${Math.floor(diff / 86400000)} д назад`;
+    return `${date.getDate()} ${date.toLocaleString('ru', { month: 'short' })}`;
   }
   
   // ========== ПРОСМОТР ПРОФИЛЯ ПОЛЬЗОВАТЕЛЯ ==========

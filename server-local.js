@@ -112,6 +112,18 @@ db.run(`CREATE TABLE IF NOT EXISTS follows (
   UNIQUE(follower_id, following_id)
 )`);
 
+// Таблица публичных обсуждений постов
+db.run(`CREATE TABLE IF NOT EXISTS post_discussions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  post_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  message TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY (post_id) REFERENCES posts(id),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+)`);
+console.log('✅ Таблица post_discussions готова');
+
 // Добавляем счётчики в users (если нет)
 db.all("PRAGMA table_info(users)", (err, columns) => {
   if (err) return console.error(err);
@@ -601,6 +613,93 @@ app.get('/api/follow/followers/:userId', (req, res) => {
       res.json(rows);
     }
   );
+});
+
+// ========== API ПУБЛИЧНЫХ ОБСУЖДЕНИЙ ==========
+
+// Получить все сообщения обсуждения поста
+app.get('/api/post-discussions/:postId', (req, res) => {
+  const { postId } = req.params;
+  
+  db.all(`
+    SELECT 
+      pd.id,
+      pd.post_id,
+      pd.user_id,
+      pd.message,
+      pd.created_at,
+      u.name as user_name
+    FROM post_discussions pd
+    JOIN users u ON pd.user_id = u.id
+    WHERE pd.post_id = ?
+    ORDER BY pd.created_at ASC
+  `, [postId], (err, rows) => {
+    if (err) {
+      console.error('Ошибка загрузки обсуждений:', err);
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(rows || []);
+  });
+});
+
+// Добавить сообщение в обсуждение
+app.post('/api/post-discussions', (req, res) => {
+  const { post_id, user_id, message } = req.body;
+  
+  if (!post_id || !user_id || !message || !message.trim()) {
+    return res.status(400).json({ error: 'Не все поля заполнены' });
+  }
+  
+  db.run(`
+    INSERT INTO post_discussions (post_id, user_id, message, created_at)
+    VALUES (?, ?, ?, ?)
+  `, [post_id, user_id, message.trim(), Date.now()], function(err) {
+    if (err) {
+      console.error('Ошибка добавления сообщения:', err);
+      return res.status(500).json({ error: err.message });
+    }
+    
+    // Возвращаем созданное сообщение с именем пользователя
+    db.get(`
+      SELECT 
+        pd.id,
+        pd.post_id,
+        pd.user_id,
+        pd.message,
+        pd.created_at,
+        u.name as user_name
+      FROM post_discussions pd
+      JOIN users u ON pd.user_id = u.id
+      WHERE pd.id = ?
+    `, [this.lastID], (err, row) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(row);
+    });
+  });
+});
+
+// Удалить своё сообщение из обсуждения
+app.delete('/api/post-discussions/:messageId', (req, res) => {
+  const { messageId } = req.params;
+  const { user_id } = req.body;
+  
+  if (!user_id) {
+    return res.status(400).json({ error: 'Не указан пользователь' });
+  }
+  
+  // Проверяем, что сообщение принадлежит пользователю
+  db.get(`SELECT user_id FROM post_discussions WHERE id = ?`, [messageId], (err, msg) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!msg) return res.status(404).json({ error: 'Сообщение не найдено' });
+    if (msg.user_id !== user_id) {
+      return res.status(403).json({ error: 'Нельзя удалить чужое сообщение' });
+    }
+    
+    db.run(`DELETE FROM post_discussions WHERE id = ?`, [messageId], (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true });
+    });
+  });
 });
 
 app.listen(port, () => {
