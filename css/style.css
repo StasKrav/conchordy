@@ -2819,7 +2819,6 @@ textarea#restoreCodeInput {
 
 .room-chat-message.donation {
   background: linear-gradient(135deg, #fff8e7, #fff0d8);
-  border-left: 3px solid #f5b042;
   padding: 8px 12px;
   border-radius: 12px;
 }

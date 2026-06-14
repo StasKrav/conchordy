@@ -1716,7 +1716,7 @@
               <circle cx="12" cy="12" r="10"/>
               <polygon points="10 8 16 12 10 16 10 8" fill="currentColor"/>
             </svg>
-            <span>Начать концерт</span>
+            <span>Начать эфир</span>
           </div>
   
           <div class="menu-item" id="themeMenuItem">
@@ -2776,9 +2776,9 @@
     const modalHtml = `
       <div class="modal" id="createRoomModal" style="display: flex;">
         <div class="modal-card">
-          <h3>Начать концерт</h3>
+          <h3>Начать эфир</h3>
           <div class="form-group">
-            <label>Название концерта</label>
+            <label>Название эфира</label>
             <input type="text" id="roomTitle" placeholder="например: Акустический вечер">
           </div>
           <div class="form-group">
@@ -2799,7 +2799,7 @@
     document.getElementById('createRoomBtn').onclick = async () => {
       const title = document.getElementById('roomTitle').value.trim();
       if (!title) {
-        alert('Введите название концерта');
+        alert('Введите название эфира');
         return;
       }
       const description = document.getElementById('roomDesc').value.trim();
@@ -2831,6 +2831,9 @@
   
   // Открыть комнату
   async function openRoom(roomId, isHost = false) {
+    // Скрываем кнопку создания поста
+    const fab = document.getElementById('fabBtn');
+    if (fab) fab.style.display = 'none';
     try {
       const response = await fetch(`${API_BASE}/live-rooms/${roomId}`);
       if (!response.ok) throw new Error('Комната не найдена');
@@ -2946,7 +2949,7 @@
     });
     
     currentSocket.on('user-joined', (data) => {
-      addSystemMessageToUI(`${data.userName} присоединился к концерту`);
+      addSystemMessageToUI(`${data.userName} присоединился к эфиру`);
       updateRoomListenersCount();
       
       // Если хост уже вещает, сообщаем новому слушателю
@@ -2956,7 +2959,7 @@
     });
     
     currentSocket.on('user-left', (data) => {
-      addSystemMessageToUI(`${data.userName} покинул концерт`);
+      addSystemMessageToUI(`${data.userName} покинул эфир`);
       updateRoomListenersCount();
     });
   }
@@ -2999,6 +3002,20 @@
 
         <div class="audio-controls">
           ${isHost ? `
+                    <div class="audio-controls">
+                      <button id="testMicBtn" class="audio-btn audio-btn-test">
+                        <i class="fa-solid fa-ear-listen"></i> Проверить микрофон
+                      </button>
+                    </div>
+                    <div class="mic-test-indicator" id="micTestIndicator" style="display: none;">
+                      <i class="fa-solid fa-waveform"></i>
+                      <span>Тест микрофона</span>
+                      <div class="volume-indicator">
+                        <div class="volume-level" id="volumeLevel"></div>
+                      </div>
+                    </div>
+                  ` : ''}
+          ${isHost ? `
             <div class="room-controls-row">
               <button id="startBroadcastBtn" class="room-control-btn room-control-start">
                 <i class="fa-solid fa-microphone"></i> Начать эфир
@@ -3011,15 +3028,7 @@
               </button>
             </div>
           ` : ''}
-        ${isHost ? `
-          <div class="mic-test-indicator" id="micTestIndicator" style="display: none;">
-            <i class="fa-solid fa-waveform"></i>
-            <span>Тест микрофона</span>
-            <div class="volume-indicator">
-              <div class="volume-level" id="volumeLevel"></div>
-            </div>
-          </div>
-        ` : ''}
+        
         
         <div class="room-chat">
           <div class="room-chat-messages" id="roomChatMessages"></div>
@@ -3050,6 +3059,11 @@
         currentSocket = null;
       }
       currentRoom = null;
+      
+      // Показываем кнопку создания поста
+      const fab = document.getElementById('fabBtn');
+      if (fab) fab.style.display = 'flex';
+      
       setActiveScreen('feed');
       renderFeed();
     };
@@ -3100,7 +3114,7 @@
     const endRoomBtn = document.getElementById('endRoomBtn');
     if (endRoomBtn) {
       endRoomBtn.onclick = async () => {
-        if (confirm('Завершить концерт?')) {
+        if (confirm('Завершить эфир?')) {
           await fetch(`${API_BASE}/live-rooms/${room.id}/end`, { method: 'PUT' });
           if (currentSocket) {
             currentSocket.emit('leave-room', room.id, currentUser.id, currentUser.name);
@@ -3160,6 +3174,11 @@
         endRoomBtn.onclick = () => endBroadcast();
       }
     }
+
+    const testMicBtn = document.getElementById('testMicBtn');
+    if (testMicBtn) {
+      testMicBtn.onclick = () => testMicrophone();
+    }
   }
   
   // Добавить сообщение в UI чата
@@ -3192,7 +3211,7 @@
     const div = document.createElement('div');
     div.className = 'room-chat-message donation';
     div.innerHTML = `
-      🔥 <strong>${escapeHtml(donation.from_user_name || 'Кто-то')}</strong> поддержал концерт на <strong>${donation.amount} ₽</strong>
+      🔥 <strong>${escapeHtml(donation.from_user_name || 'Кто-то')}</strong> поддержал автора на <strong>${donation.amount} ₽</strong>
       ${donation.message ? `<div style="margin-top: 4px; font-size: 12px;">💬 "${escapeHtml(donation.message)}"</div>` : ''}
     `;
     chatContainer.appendChild(div);
@@ -3239,7 +3258,7 @@
     const modalHtml = `
       <div class="modal" id="donateModal" style="display: flex;">
         <div class="modal-card">
-          <h3>💰 Поддержать концерт</h3>
+          <h3>💰 Поддержать эфир</h3>
           <div class="form-group">
             <label>Сумма</label>
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
@@ -3492,12 +3511,14 @@
     
     isBroadcasting = false;
     
-    // Закрываем комнату на сервере
     if (currentRoom) {
       await fetch(`${API_BASE}/live-rooms/${currentRoom.id}/end`, { method: 'PUT' });
     }
     
-    // Возвращаемся в ленту
+    // Показываем кнопку создания поста
+    const fab = document.getElementById('fabBtn');
+    if (fab) fab.style.display = 'flex';
+    
     setActiveScreen('feed');
     renderFeed();
   }
