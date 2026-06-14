@@ -3144,20 +3144,20 @@
 
     // Аудио-кнопки
     if (isHost) {
-      const testMicBtn = document.querySelector('.audio-btn-test');
       const startBroadcastBtn = document.getElementById('startBroadcastBtn');
-      const stopBroadcastBtn = document.getElementById('stopBroadcastBtn');
-      
-      if (testMicBtn) {
-        testMicBtn.onclick = () => testMicrophone();
-      }
+      const pauseBroadcastBtn = document.getElementById('pauseBroadcastBtn');
+      const endRoomBtn = document.getElementById('endRoomBtn');
       
       if (startBroadcastBtn) {
         startBroadcastBtn.onclick = () => startBroadcast(room.id);
       }
       
-      if (stopBroadcastBtn) {
-        stopBroadcastBtn.onclick = () => stopBroadcast();
+      if (pauseBroadcastBtn) {
+        pauseBroadcastBtn.onclick = () => pauseBroadcast();
+      }
+      
+      if (endRoomBtn) {
+        endRoomBtn.onclick = () => endBroadcast();
       }
     }
   }
@@ -3383,47 +3383,121 @@
   }
   
   // Начать трансляцию (хост)
-  // Начать эфир (включаем микрофон и делаем комнату LIVE)
   async function startBroadcast(roomId) {
-    // 1. Получаем доступ к микрофону
-    localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    console.log('🎤 Начать эфир / Возобновить');
     
-    // 2. Переводим комнату в статус LIVE
-    await fetch(`${API_BASE}/live-rooms/${roomId}/start`, { method: 'PUT' });
+    if (!isAudioSupported()) {
+      alert('Ваш браузер не поддерживает WebRTC');
+      return;
+    }
     
-    // 3. Уведомляем всех через сокет
-    currentSocket.emit('start-broadcast', roomId);
-    
-    // 4. Обновляем UI
-    startBtn.disabled = true;
-    pauseBtn.disabled = false;
-    
-    isBroadcasting = true;
+    try {
+      // Если уже есть поток, но он остановлен (пауза) — создаём новый
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+      }
+      
+      localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log('🎙️ Микрофон получен');
+      
+      // Если комната ещё не в статусе LIVE, переводим её
+      if (currentRoom && currentRoom.status !== 'live') {
+        await fetch(`${API_BASE}/live-rooms/${roomId}/start`, { method: 'PUT' });
+        currentRoom.status = 'live';
+      }
+      
+      if (currentSocket) {
+        currentSocket.emit('start-broadcast', roomId);
+      }
+      
+      isBroadcasting = true;
+      
+      // Обновляем UI — ищем кнопки заново при каждом вызове
+      const startBtn = document.getElementById('startBroadcastBtn');
+      const pauseBtn = document.getElementById('pauseBroadcastBtn');
+      
+      if (startBtn) startBtn.disabled = true;
+      if (pauseBtn) pauseBtn.disabled = false;
+      
+      const statusDiv = document.querySelector('.room-player-status');
+      if (statusDiv) {
+        statusDiv.innerHTML = '<span class="pulse-dot"></span> 🔴 Эфир идёт';
+        statusDiv.style.color = '#c2410c';
+      }
+      
+      const audioStatus = document.getElementById('audioStatus');
+      if (audioStatus) {
+        audioStatus.innerHTML = '<i class="fa-solid fa-headphones"></i> 🎵 Трансляция идёт';
+        audioStatus.style.color = '#2f6b47';
+      }
+      
+      console.log('🎙️ Трансляция активна');
+      
+    } catch (e) {
+      console.error('Ошибка начала трансляции:', e);
+      alert('Не удалось получить доступ к микрофону');
+    }
   }
-  
-  // Пауза (выключаем микрофон, комната остаётся LIVE)
+
   function pauseBroadcast() {
+    console.log('⏸ Пауза нажата');
+    
+    if (localStream) {
+      localStream.getTracks().forEach(track => {
+        track.stop();
+        console.log('🔇 Дорожка остановлена:', track.kind);
+      });
+      localStream = null;
+    }
+    
+    if (currentSocket && currentRoom) {
+      currentSocket.emit('pause-broadcast', currentRoom.id);
+    }
+    
+    isBroadcasting = false;
+    
+    // Обновляем UI
+    const startBtn = document.getElementById('startBroadcastBtn');
+    const pauseBtn = document.getElementById('pauseBroadcastBtn');
+    
+    if (startBtn) startBtn.disabled = false;
+    if (pauseBtn) pauseBtn.disabled = true;
+    
+    const statusDiv = document.querySelector('.room-player-status');
+    if (statusDiv) {
+      statusDiv.innerHTML = '<span class="pulse-dot"></span> ⏸ Эфир на паузе';
+      statusDiv.style.color = '#b85c3a';
+    }
+    
+    const audioStatus = document.getElementById('audioStatus');
+    if (audioStatus) {
+      audioStatus.innerHTML = '<i class="fa-regular fa-circle-pause"></i> Трансляция на паузе';
+    }
+    
+    console.log('🔇 Трансляция на паузе');
+  }
+
+  async function endBroadcast() {
+    console.log('🔴 Завершение эфира');
+    
     if (localStream) {
       localStream.getTracks().forEach(track => track.stop());
       localStream = null;
     }
     
-    currentSocket.emit('pause-broadcast', currentRoom.id);
-    
-    startBtn.disabled = false;
-    pauseBtn.disabled = true;
-    isBroadcasting = false;
-  }
-  
-  // Завершить эфир (закрываем комнату)
-  async function endBroadcast() {
-    if (localStream) {
-      localStream.getTracks().forEach(track => track.stop());
+    if (currentSocket && currentRoom) {
+      currentSocket.emit('stop-broadcast', currentRoom.id);
     }
     
-    await fetch(`${API_BASE}/live-rooms/${currentRoom.id}/end`, { method: 'PUT' });
-    currentSocket.emit('end-broadcast', currentRoom.id);
+    isBroadcasting = false;
     
+    // Закрываем комнату на сервере
+    if (currentRoom) {
+      await fetch(`${API_BASE}/live-rooms/${currentRoom.id}/end`, { method: 'PUT' });
+    }
+    
+    // Возвращаемся в ленту
     setActiveScreen('feed');
     renderFeed();
   }
