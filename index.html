@@ -1051,7 +1051,7 @@
         <div class="live-rooms-section">
           <div class="live-rooms-header">
             <span class="live-dot"></span>
-            <h3>🎙️ Сейчас в эфире</h3>
+            <h3>Сейчас в эфире</h3>
           </div>
           <div class="rooms-list">
             ${liveRooms.map(room => `
@@ -1063,11 +1063,17 @@
                   </div>
                   <span class="room-card-listeners">👥 ${room.listeners_count || 0}</span>
                 </div>
-                <div class="room-card-host">🎸 ${escapeHtml(room.host_name)}</div>
+                <div class="room-card-host">${escapeHtml(room.host_name)}</div>
                 <div class="room-card-stats">
                   <span>🎤 ${room.speakers_count || 1} спикеров</span>
                   <span>💬 нажмите, чтобы присоединиться</span>
                 </div>
+
+                ${currentUser && room.host_id === currentUser.id ? `
+                  <button class="end-room-btn" data-room-id="${room.id}" style="margin-top: 8px; background: #c2410c; color: white; border: none; padding: 6px 12px; border-radius: 20px; font-size: 11px;">
+                    Завершить эфир
+                  </button>
+                ` : ''}
               </div>
             `).join('')}
           </div>
@@ -1164,6 +1170,17 @@
       card.addEventListener('click', () => {
         const roomId = card.getAttribute('data-room-id');
         openRoom(roomId, false);
+      });
+    });
+
+    document.querySelectorAll('.end-room-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const roomId = btn.getAttribute('data-room-id');
+        if (confirm('Завершить эфир?')) {
+          await fetch(`${API_BASE}/live-rooms/${roomId}/end`, { method: 'PUT' });
+          renderFeed(); // обновляем ленту
+        }
       });
     });
   }
@@ -2758,7 +2775,7 @@
     const modalHtml = `
       <div class="modal" id="createRoomModal" style="display: flex;">
         <div class="modal-card">
-          <h3>🎸 Начать концерт</h3>
+          <h3>Начать концерт</h3>
           <div class="form-group">
             <label>Название концерта</label>
             <input type="text" id="roomTitle" placeholder="например: Акустический вечер">
@@ -2896,7 +2913,7 @@
           <div class="room-title">${escapeHtml(room.title)}</div>
           <div class="room-host">Ведущий: ${escapeHtml(room.host_name)}</div>
           <div class="room-stats">
-            <span>👥 <span id="listenersCount">${room.listeners_count || 0}</span> слушателей</span>
+            <span><span id="listenersCount">${room.listeners_count || 0}</span> слушателей</span>
             <span>💰 <span id="donationsTotal">${totalDonations}</span> ₽ собрано</span>
           </div>
         </div>
@@ -2905,7 +2922,7 @@
           <div class="room-player-avatar">${room.host_name.charAt(0)}</div>
           <div class="room-player-status">
             <span class="pulse-dot"></span>
-            ${isHost ? '🔴 Вы в эфире' : '🎧 Слушаем'}
+            ${isHost ? 'Вы в эфире' : 'Слушаем'}
           </div>
           ${!isHost ? `<button class="donate-btn" id="donateBtn"><i class="fa-regular fa-heart"></i> Поддержать</button>` : ''}
         </div>
@@ -2920,11 +2937,11 @@
         
         ${isHost ? `
           <div style="margin-top: 16px; display: flex; flex-direction: column; gap: 12px;">
-            <button id="startRoomBtn" style="background: #2f6b47; color: white; border: none; padding: 12px; border-radius: 40px; width: 100%; font-weight: 500;">
-              🎤 Начать эфир
+            <button id="startRoomBtn" class="room-control-btn room-control-start">
+              Начать эфир
             </button>
-            <button id="endRoomBtn" style="background: #c2410c; color: white; border: none; padding: 12px; border-radius: 40px; width: 100%;">
-              🔴 Завершить концерт
+            <button id="endRoomBtn" class="room-control-btn room-control-end">
+              Завершить концерт
             </button>
           </div>
         ` : ''}

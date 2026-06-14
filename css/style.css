@@ -2992,4 +2992,56 @@ textarea#restoreCodeInput {
   font-size: 11px;
   color: var(--text-secondary);
 }
+
+/* Кнопки управления комнатой */
+.room-control-btn {
+  padding: 12px;
+  border-radius: 40px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;
+  border: none;
+  font-size: 14px;
+}
+
+.room-control-start {
+  background: rgba(47, 107, 71, 0.12);
+  color: #2f6b47;
+  border: 1px solid rgba(47, 107, 71, 0.25);
+}
+
+.room-control-start:hover {
+  background: rgba(47, 107, 71, 0.2);
+  transform: scale(1.02);
+}
+
+.room-control-end {
+  background: rgba(194, 65, 12, 0.1);
+  color: #b85c3a;
+  border: 1px solid rgba(194, 65, 12, 0.25);
+}
+
+.room-control-end:hover {
+  background: rgba(194, 65, 12, 0.18);
+  transform: scale(1.02);
+}
+
+/* Кнопка завершения эфира в ленте */
+.end-room-btn {
+  margin-top: 10px;
+  background: rgba(194, 65, 12, 0.08);
+  color: #b85c3a;
+  border: 1px solid rgba(194, 65, 12, 0.2);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  cursor: pointer;
+  width: 100%;
+  transition: 0.2s;
+}
+
+.end-room-btn:hover {
+  background: rgba(194, 65, 12, 0.15);
+}
 /* конец */

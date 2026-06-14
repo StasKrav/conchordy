@@ -61,6 +61,20 @@ io.on('connection', (socket) => {
   });
 });
 
+// Запускаем проверку каждые 5 минут
+setInterval(() => {
+  const oneHourAgo = Date.now() - 60 * 60 * 1000;
+  
+  db.run(`
+    UPDATE live_rooms 
+    SET status = 'ended', ended_at = ? 
+    WHERE status = 'live' 
+    AND started_at < ?
+    AND (SELECT COUNT(*) FROM room_participants WHERE room_id = live_rooms.id) = 0
+  `, [Date.now(), oneHourAgo], (err) => {
+    if (!err) console.log('🧹 Очистка старых комнат выполнена');
+  });
+}, 5 * 60 * 1000);
 
 // ========== НАСТРОЙКА ЗАГРУЗКИ АУДИО ==========
 const uploadDir = './uploads';
