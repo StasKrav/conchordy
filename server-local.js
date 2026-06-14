@@ -14,6 +14,54 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('.'));
 
+const http = require('http');
+const socketIo = require('socket.io');
+
+const server = http.createServer(app);
+const io = socketIo(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
+
+// WebSocket события
+io.on('connection', (socket) => {
+  console.log('🔌 Новое подключение:', socket.id);
+  
+  socket.on('join-room', (roomId, userId, userName) => {
+    socket.join(roomId);
+    console.log(`📡 ${userName} (${userId}) присоединился к комнате ${roomId}`);
+    
+    // Увеличиваем счётчик слушателей
+    db.run(`UPDATE live_rooms SET listeners_count = listeners_count + 1 WHERE id = ?`, [roomId]);
+    
+    // Оповещаем всех в комнате
+    io.to(roomId).emit('user-joined', { userId, userName, timestamp: Date.now() });
+  });
+  
+  socket.on('leave-room', (roomId, userId, userName) => {
+    socket.leave(roomId);
+    console.log(`📡 ${userName} (${userId}) покинул комнату ${roomId}`);
+    
+    db.run(`UPDATE live_rooms SET listeners_count = listeners_count - 1 WHERE id = ?`, [roomId]);
+    io.to(roomId).emit('user-left', { userId, userName, timestamp: Date.now() });
+  });
+  
+  socket.on('chat-message', (data) => {
+    io.to(data.roomId).emit('new-chat-message', data);
+  });
+  
+  socket.on('donation', (data) => {
+    io.to(data.roomId).emit('new-donation', data);
+  });
+  
+  socket.on('disconnect', () => {
+    console.log('🔌 Отключение:', socket.id);
+  });
+});
+
+
 // ========== НАСТРОЙКА ЗАГРУЗКИ АУДИО ==========
 const uploadDir = './uploads';
 if (!fs.existsSync(uploadDir)) {
@@ -123,6 +171,60 @@ db.run(`CREATE TABLE IF NOT EXISTS post_discussions (
   FOREIGN KEY (user_id) REFERENCES users(id)
 )`);
 console.log('✅ Таблица post_discussions готова');
+
+// ===== ТАБЛИЦЫ ДЛЯ АУДИО-КОМНАТ =====
+
+// Комнаты (концерты/трансляции)
+db.run(`CREATE TABLE IF NOT EXISTS live_rooms (
+  id TEXT PRIMARY KEY,
+  host_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT,
+  status TEXT DEFAULT 'waiting', -- waiting, live, ended
+  started_at INTEGER,
+  ended_at INTEGER,
+  listeners_count INTEGER DEFAULT 0,
+  FOREIGN KEY (host_id) REFERENCES users(id)
+)`);
+
+// Участники комнат
+db.run(`CREATE TABLE IF NOT EXISTS room_participants (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  room_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  role TEXT DEFAULT 'listener', -- host, speaker, listener
+  joined_at INTEGER,
+  left_at INTEGER,
+  FOREIGN KEY (room_id) REFERENCES live_rooms(id),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+)`);
+
+// Сообщения чата в комнате
+db.run(`CREATE TABLE IF NOT EXISTS room_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  room_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  message TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY (room_id) REFERENCES live_rooms(id),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+)`);
+
+// Донаты
+db.run(`CREATE TABLE IF NOT EXISTS room_donations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  room_id TEXT NOT NULL,
+  from_user_id TEXT NOT NULL,
+  to_user_id TEXT NOT NULL,
+  amount INTEGER NOT NULL,
+  message TEXT,
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY (room_id) REFERENCES live_rooms(id),
+  FOREIGN KEY (from_user_id) REFERENCES users(id),
+  FOREIGN KEY (to_user_id) REFERENCES users(id)
+)`);
+
+console.log('✅ Таблицы для аудио-комнат готовы');
 
 // Добавляем счётчики в users (если нет)
 db.all("PRAGMA table_info(users)", (err, columns) => {
@@ -702,7 +804,162 @@ app.delete('/api/post-discussions/:messageId', (req, res) => {
   });
 });
 
-app.listen(port, () => {
+// ========== API АУДИО-КОМНАТ ==========
+
+// Получить все активные комнаты
+app.get('/api/live-rooms', (req, res) => {
+  db.all(`
+    SELECT lr.*, u.name as host_name,
+      (SELECT COUNT(*) FROM room_participants WHERE room_id = lr.id AND role != 'listener') as speakers_count
+    FROM live_rooms lr
+    JOIN users u ON lr.host_id = u.id
+    WHERE lr.status = 'live'
+    ORDER BY lr.started_at DESC
+  `, (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+// Создать комнату
+app.post('/api/live-rooms', (req, res) => {
+  const { host_id, title, description } = req.body;
+  
+  const roomId = 'room_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+  
+  db.run(`
+    INSERT INTO live_rooms (id, host_id, title, description, status, started_at, listeners_count)
+    VALUES (?, ?, ?, ?, 'waiting', ?, 0)
+  `, [roomId, host_id, title, description || '', Date.now()], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    
+    // Добавляем создателя как участника (роль host)
+    db.run(`
+      INSERT INTO room_participants (room_id, user_id, role, joined_at)
+      VALUES (?, ?, 'host', ?)
+    `, [roomId, host_id, Date.now()]);
+    
+    res.json({ success: true, roomId, room: { id: roomId, host_id, title, description } });
+  });
+});
+
+// Получить данные комнаты
+app.get('/api/live-rooms/:roomId', (req, res) => {
+  const { roomId } = req.params;
+  
+  db.get(`
+    SELECT lr.*, u.name as host_name
+    FROM live_rooms lr
+    JOIN users u ON lr.host_id = u.id
+    WHERE lr.id = ?
+  `, [roomId], (err, room) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!room) return res.status(404).json({ error: 'Комната не найдена' });
+    res.json(room);
+  });
+});
+
+// Получить сообщения чата комнаты
+app.get('/api/room-messages/:roomId', (req, res) => {
+  const { roomId } = req.params;
+  
+  db.all(`
+    SELECT rm.*, u.name as user_name
+    FROM room_messages rm
+    JOIN users u ON rm.user_id = u.id
+    WHERE rm.room_id = ?
+    ORDER BY rm.created_at ASC
+    LIMIT 100
+  `, [roomId], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+// Отправить сообщение в чат комнаты
+app.post('/api/room-messages', (req, res) => {
+  const { room_id, user_id, message } = req.body;
+  
+  if (!room_id || !user_id || !message || !message.trim()) {
+    return res.status(400).json({ error: 'Не все поля заполнены' });
+  }
+  
+  db.run(`
+    INSERT INTO room_messages (room_id, user_id, message, created_at)
+    VALUES (?, ?, ?, ?)
+  `, [room_id, user_id, message.trim(), Date.now()], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    
+    db.get(`
+      SELECT rm.*, u.name as user_name
+      FROM room_messages rm
+      JOIN users u ON rm.user_id = u.id
+      WHERE rm.id = ?
+    `, [this.lastID], (err, msg) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(msg);
+    });
+  });
+});
+
+// Получить донаты комнаты
+app.get('/api/room-donations/:roomId', (req, res) => {
+  const { roomId } = req.params;
+  
+  db.all(`
+    SELECT rd.*, u.name as from_user_name
+    FROM room_donations rd
+    JOIN users u ON rd.from_user_id = u.id
+    WHERE rd.room_id = ?
+    ORDER BY rd.created_at DESC
+    LIMIT 50
+  `, [roomId], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+// Отправить донат (тестовый режим)
+app.post('/api/room-donations', (req, res) => {
+  const { room_id, from_user_id, to_user_id, amount, message } = req.body;
+  
+  db.run(`
+    INSERT INTO room_donations (room_id, from_user_id, to_user_id, amount, message, created_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `, [room_id, from_user_id, to_user_id, amount, message || '', Date.now()], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true, donationId: this.lastID });
+  });
+});
+
+// Начать трансляцию (обновить статус)
+app.put('/api/live-rooms/:roomId/start', (req, res) => {
+  const { roomId } = req.params;
+  
+  db.run(`
+    UPDATE live_rooms SET status = 'live', started_at = ? WHERE id = ?
+  `, [Date.now(), roomId], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true });
+  });
+});
+
+// Завершить трансляцию
+app.put('/api/live-rooms/:roomId/end', (req, res) => {
+  const { roomId } = req.params;
+  
+  db.run(`
+    UPDATE live_rooms SET status = 'ended', ended_at = ? WHERE id = ?
+  `, [Date.now(), roomId], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true });
+  });
+});
+
+
+
+
+server.listen(port, () => {
   console.log(`🚀 Локальный сервер: http://localhost:${port}`);
   console.log(`📁 Открывай index.html`);
 });

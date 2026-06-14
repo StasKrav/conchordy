@@ -9,11 +9,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
   <!-- WaveSurfer.js для визуализации аудио -->
   <script src="https://unpkg.com/wavesurfer.js@7.4.0/dist/wavesurfer.min.js"></script>
-  <!-- Дата-пикер для комментариев (опционально) -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Socket.io для реального времени -->
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="css/style.css">
-
 </head>
 <body>
 <div class="app-wrapper" id="appRoot"></div>
@@ -993,9 +992,21 @@
   
   let currentFilter = null;
   
-  function renderFeed() {
+  async function renderFeed() {
     const container = document.getElementById('feedList');
     if (!container) return;
+    
+    // Загружаем активные комнаты
+    let liveRooms = [];
+    try {
+      const response = await fetch(`${API_BASE}/live-rooms`);
+      if (response.ok) {
+        liveRooms = await response.json();
+        console.log('🎙️ Загружено комнат:', liveRooms.length);
+      }
+    } catch (e) {
+      console.error('Ошибка загрузки комнат:', e);
+    }
     
     let filtered = posts.filter(p => p.status === "active");
     
@@ -1026,18 +1037,47 @@
       return;
     }
     
-    if (filtered.length === 0) {
+    if (filtered.length === 0 && liveRooms.length === 0) {
       container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-secondary);">Нет публикаций · создайте первую</div>';
       return;
     }
     
-    if (filtered.length === 0) {
-      container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-secondary);">Нет публикаций · создайте первую</div>';
-      return;
+    // Формируем HTML: сначала комнаты, потом посты
+    let html = '';
+    
+    // Блок с активными комнатами
+    if (liveRooms.length > 0) {
+      html += `
+        <div class="live-rooms-section">
+          <div class="live-rooms-header">
+            <span class="live-dot"></span>
+            <h3>🎙️ Сейчас в эфире</h3>
+          </div>
+          <div class="rooms-list">
+            ${liveRooms.map(room => `
+              <div class="room-card" data-room-id="${room.id}">
+                <div class="room-card-header">
+                  <div class="room-card-title">
+                    <span class="live-badge">LIVE</span>
+                    ${escapeHtml(room.title)}
+                  </div>
+                  <span class="room-card-listeners">👥 ${room.listeners_count || 0}</span>
+                </div>
+                <div class="room-card-host">🎸 ${escapeHtml(room.host_name)}</div>
+                <div class="room-card-stats">
+                  <span>🎤 ${room.speakers_count || 1} спикеров</span>
+                  <span>💬 нажмите, чтобы присоединиться</span>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
     }
-
-      
-      container.innerHTML = filtered.map(post => {
+    
+    // Посты
+    if (filtered.length > 0) {
+      html += filtered.map(post => {
         const authorName = getAuthorName(post.user_id);
         const hasAudio = post.audio_url && post.audio_url !== '';
         
@@ -1065,8 +1105,11 @@
           </div>
         `;
       }).join('');
+    }
     
+    container.innerHTML = html;
     
+    // Обработчики
     document.querySelectorAll('.chat-action').forEach(el => {
       el.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -1075,7 +1118,7 @@
         showChatModal(authorId, authorName);
       });
     });
-
+  
     document.querySelectorAll('.discuss-action').forEach(el => {
       el.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -1098,17 +1141,15 @@
       if (currentFilter === type) b.classList.add('active');
       else b.classList.remove('active');
     });
-
-    // Инициализация таймкод-комментариев (после существующего кода аудиоплееров)
+  
+    // Инициализация таймкод-комментариев
     document.querySelectorAll('.timeline-placeholder').forEach(async (placeholder) => {
       const postId = placeholder.getAttribute('data-post-id');
       const audioUrl = placeholder.getAttribute('data-audio-url');
       
-      // Проверяем, не инициализирован ли уже
       if (placeholder.hasAttribute('data-initialized')) return;
       placeholder.setAttribute('data-initialized', 'true');
       
-      // Небольшая задержка, чтобы DOM точно отрисовался
       setTimeout(() => {
         try {
           const timeline = new TimelineComments(postId, audioUrl, placeholder);
@@ -1116,6 +1157,14 @@
           console.error('Ошибка инициализации комментариев для поста', postId, e);
         }
       }, 100);
+    });
+  
+    // Обработчики для комнат
+    document.querySelectorAll('.room-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const roomId = card.getAttribute('data-room-id');
+        openRoom(roomId, false);
+      });
     });
   }
   
@@ -1505,7 +1554,7 @@
     }
   }
   
-  // ========== ОСНОВНОЕ ПРИЛОЖЕНИЕ ==========
+
   // ========== ОСНОВНОЕ ПРИЛОЖЕНИЕ ==========
   function renderMainApp() {
     const root = document.getElementById('appRoot');
@@ -1580,11 +1629,11 @@
             <div class="feed-list" id="feedList"></div>
           </div>
           
-          <!-- SEARCH SCREEN -->
+
           <div class="screen" id="searchScreen"></div>
-          
-          <!-- PROFILE SCREEN -->
           <div class="screen" id="profileScreen"></div>
+          <div class="screen" id="liveScreen"></div>
+          <div class="screen" id="roomScreen"></div>
         </div>
         
         <nav class="bottom-nav">
@@ -1642,6 +1691,14 @@
               <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
             </svg>
             <span>Уведомления</span>
+          </div>
+
+          <div class="menu-item" data-action="live">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <circle cx="12" cy="12" r="10"/>
+              <polygon points="10 8 16 12 10 16 10 8" fill="currentColor"/>
+            </svg>
+            <span>Начать концерт</span>
           </div>
   
           <div class="menu-item" id="themeMenuItem">
@@ -1913,6 +1970,8 @@
           alert('Уведомления скоро появятся');
         } else if (action === 'about') {
           window.location.href = 'about.html';
+        } else if (action === 'live') {
+          showCreateRoomModal();
         }
       });
     });
@@ -2685,6 +2744,457 @@
         this.wavesurfer = null;
       }
     }
+  }
+
+
+  // ========== АУДИО-КОМНАТЫ ==========
+  
+  let currentRoom = null;
+  let currentSocket = null;
+  let activeRoomsList = [];
+  
+  // Показать модальное окно создания комнаты
+  function showCreateRoomModal() {
+    const modalHtml = `
+      <div class="modal" id="createRoomModal" style="display: flex;">
+        <div class="modal-card">
+          <h3>🎸 Начать концерт</h3>
+          <div class="form-group">
+            <label>Название концерта</label>
+            <input type="text" id="roomTitle" placeholder="например: Акустический вечер">
+          </div>
+          <div class="form-group">
+            <label>Описание (необязательно)</label>
+            <textarea id="roomDesc" rows="2" placeholder="Кратко о том, что будет..."></textarea>
+          </div>
+          <div class="modal-buttons">
+            <button class="btn-secondary" id="cancelRoomBtn">Отмена</button>
+            <button class="btn-primary" id="createRoomBtn">Создать комнату</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    const modal = document.getElementById('createRoomModal');
+    
+    document.getElementById('cancelRoomBtn').onclick = () => modal.remove();
+    document.getElementById('createRoomBtn').onclick = async () => {
+      const title = document.getElementById('roomTitle').value.trim();
+      if (!title) {
+        alert('Введите название концерта');
+        return;
+      }
+      const description = document.getElementById('roomDesc').value.trim();
+      
+      try {
+        const response = await fetch(`${API_BASE}/live-rooms`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            host_id: currentUser.id,
+            title: title,
+            description: description
+          })
+        });
+        if (response.ok) {
+          const result = await response.json();
+          modal.remove();
+          // Открываем созданную комнату
+          openRoom(result.roomId, true);
+        } else {
+          alert('Ошибка создания комнаты');
+        }
+      } catch (e) {
+        console.error(e);
+        alert('Ошибка соединения');
+      }
+    };
+  }
+  
+  // Открыть комнату
+  async function openRoom(roomId, isHost = false) {
+    try {
+      const response = await fetch(`${API_BASE}/live-rooms/${roomId}`);
+      if (!response.ok) throw new Error('Комната не найдена');
+      const room = await response.json();
+      currentRoom = room;
+      
+      // Загружаем сообщения чата
+      const messagesResponse = await fetch(`${API_BASE}/room-messages/${roomId}`);
+      const messages = await messagesResponse.json();
+      
+      // Загружаем донаты
+      const donationsResponse = await fetch(`${API_BASE}/room-donations/${roomId}`);
+      const donations = await donationsResponse.json();
+      
+      renderRoomScreen(room, isHost, messages, donations);
+      setActiveScreen('room');
+      
+      // Подключаем WebSocket
+      initRoomSocket(roomId, isHost);
+      
+    } catch (e) {
+      console.error(e);
+      alert('Не удалось загрузить комнату');
+    }
+  }
+  
+  // Инициализация WebSocket для комнаты
+  function initRoomSocket(roomId, isHost) {
+    if (currentSocket) {
+      currentSocket.disconnect();
+    }
+    
+    currentSocket = io();
+    
+    currentSocket.on('connect', () => {
+      console.log('🔗 WebSocket подключён');
+      currentSocket.emit('join-room', roomId, currentUser.id, currentUser.name);
+    });
+    
+    currentSocket.on('new-chat-message', (data) => {
+      // Показываем сообщение, только если оно НЕ от текущего пользователя
+      if (data.user_id !== currentUser.id) {
+        addRoomMessageToUI(data);
+      }
+    });
+    
+    currentSocket.on('new-donation', (data) => {
+      addDonationToUI(data);
+    });
+    
+    currentSocket.on('user-joined', (data) => {
+      addSystemMessageToUI(`${data.userName} присоединился к концерту`);
+      updateRoomListenersCount();
+    });
+    
+    currentSocket.on('user-left', (data) => {
+      addSystemMessageToUI(`${data.userName} покинул концерт`);
+      updateRoomListenersCount();
+    });
+  }
+  
+  // Рендер страницы комнаты
+  function renderRoomScreen(room, isHost, messages, donations) {
+    const container = document.getElementById('roomScreen');
+    if (!container) return;
+    
+    const totalDonations = donations.reduce((sum, d) => sum + d.amount, 0);
+    
+    container.innerHTML = `
+      <div class="room-container">
+        <div style="margin-bottom: 12px;">
+          <button id="backFromRoomBtn" class="back-to-profile-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            Назад
+          </button>
+        </div>
+        
+        <div class="room-header">
+          <div class="room-title">${escapeHtml(room.title)}</div>
+          <div class="room-host">Ведущий: ${escapeHtml(room.host_name)}</div>
+          <div class="room-stats">
+            <span>👥 <span id="listenersCount">${room.listeners_count || 0}</span> слушателей</span>
+            <span>💰 <span id="donationsTotal">${totalDonations}</span> ₽ собрано</span>
+          </div>
+        </div>
+        
+        <div class="room-player">
+          <div class="room-player-avatar">${room.host_name.charAt(0)}</div>
+          <div class="room-player-status">
+            <span class="pulse-dot"></span>
+            ${isHost ? '🔴 Вы в эфире' : '🎧 Слушаем'}
+          </div>
+          ${!isHost ? `<button class="donate-btn" id="donateBtn"><i class="fa-regular fa-heart"></i> Поддержать</button>` : ''}
+        </div>
+        
+        <div class="room-chat">
+          <div class="room-chat-messages" id="roomChatMessages"></div>
+          <div class="room-chat-input">
+            <input type="text" id="roomChatInput" placeholder="Напишите сообщение...">
+            <button id="roomChatSendBtn"><i class="fa-regular fa-paper-plane"></i></button>
+          </div>
+        </div>
+        
+        ${isHost ? `
+          <div style="margin-top: 16px; display: flex; flex-direction: column; gap: 12px;">
+            <button id="startRoomBtn" style="background: #2f6b47; color: white; border: none; padding: 12px; border-radius: 40px; width: 100%; font-weight: 500;">
+              🎤 Начать эфир
+            </button>
+            <button id="endRoomBtn" style="background: #c2410c; color: white; border: none; padding: 12px; border-radius: 40px; width: 100%;">
+              🔴 Завершить концерт
+            </button>
+          </div>
+        ` : ''}
+      </div>
+    `;
+    
+    // Заполняем чат историей
+    const chatContainer = container.querySelector('#roomChatMessages');
+    messages.forEach(msg => {
+      addRoomMessageToUI(msg, chatContainer, false);
+    });
+    
+    // Добавляем донаты в UI
+    donations.forEach(donation => {
+      addDonationToUI(donation, chatContainer, false);
+    });
+    
+    // Обработчики
+    document.getElementById('backFromRoomBtn').onclick = () => {
+      if (currentSocket) {
+        currentSocket.emit('leave-room', room.id, currentUser.id, currentUser.name);
+        currentSocket.disconnect();
+        currentSocket = null;
+      }
+      currentRoom = null;
+      setActiveScreen('feed');
+      renderFeed();
+    };
+    
+    const chatInput = document.getElementById('roomChatInput');
+    const chatSendBtn = document.getElementById('roomChatSendBtn');
+    
+    const sendMessage = async () => {
+      const message = chatInput.value.trim();
+      if (!message) return;
+      
+      try {
+        const response = await fetch(`${API_BASE}/room-messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            room_id: room.id,
+            user_id: currentUser.id,
+            message: message
+          })
+        });
+        if (response.ok) {
+          const newMsg = await response.json();
+          // Добавляем сообщение в UI для себя (один раз)
+          addRoomMessageToUI(newMsg);
+          chatInput.value = '';
+          
+          // Отправляем через WebSocket для всех остальных
+          if (currentSocket) {
+            currentSocket.emit('chat-message', { ...newMsg, roomId: room.id });
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    
+    chatSendBtn.onclick = sendMessage;
+    chatInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendMessage();
+    });
+    
+    const donateBtn = document.getElementById('donateBtn');
+    if (donateBtn) {
+      donateBtn.onclick = () => showDonateModal(room.id, room.host_id);
+    }
+    
+    const endRoomBtn = document.getElementById('endRoomBtn');
+    if (endRoomBtn) {
+      endRoomBtn.onclick = async () => {
+        if (confirm('Завершить концерт?')) {
+          await fetch(`${API_BASE}/live-rooms/${room.id}/end`, { method: 'PUT' });
+          if (currentSocket) {
+            currentSocket.emit('leave-room', room.id, currentUser.id, currentUser.name);
+            currentSocket.disconnect();
+          }
+          setActiveScreen('feed');
+          renderFeed();
+        }
+      };
+    }
+
+    const startRoomBtn = document.getElementById('startRoomBtn');
+    if (startRoomBtn) {
+      startRoomBtn.onclick = async () => {
+        try {
+          const response = await fetch(`${API_BASE}/live-rooms/${room.id}/start`, { 
+            method: 'PUT' 
+          });
+          if (response.ok) {
+            // Обновляем UI
+            const statusDiv = document.querySelector('.room-player-status');
+            if (statusDiv) {
+              statusDiv.innerHTML = '<span class="pulse-dot"></span> Эфир идёт';
+            }
+            startRoomBtn.style.display = 'none';
+            
+            // Показываем уведомление
+            alert('🎸 Эфир начат! Комната появится в ленте у всех пользователей.');
+            
+            // Обновляем статус комнаты в памяти
+            room.status = 'live';
+          } else {
+            alert('Ошибка начала эфира');
+          }
+        } catch (e) {
+          console.error(e);
+          alert('Ошибка соединения');
+        }
+      };
+    }
+  }
+  
+  // Добавить сообщение в UI чата
+  function addRoomMessageToUI(message, container = null, scroll = true) {
+    const chatContainer = container || document.querySelector('#roomChatMessages');
+    if (!chatContainer) return;
+    
+    const isSystem = message.user_id === 'system';
+    const isOwn = !isSystem && message.user_id === currentUser?.id;
+    
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `room-chat-message ${isSystem ? 'system' : ''}`;
+    msgDiv.innerHTML = isSystem ? `
+      <div>📢 ${escapeHtml(message.message)}</div>
+    ` : `
+      <span class="author">${escapeHtml(message.user_name || 'Участник')}</span>
+      <span class="time">${formatMessageTime(message.created_at)}</span>
+      <div>${escapeHtml(message.message)}</div>
+    `;
+    
+    chatContainer.appendChild(msgDiv);
+    if (scroll) chatContainer.scrollTop = chatContainer.scrollHeight;
+  }
+  
+  // Добавить донат в UI
+  function addDonationToUI(donation, container = null, scroll = true) {
+    const chatContainer = container || document.querySelector('#roomChatMessages');
+    if (!chatContainer) return;
+    
+    const div = document.createElement('div');
+    div.className = 'room-chat-message donation';
+    div.innerHTML = `
+      🔥 <strong>${escapeHtml(donation.from_user_name || 'Кто-то')}</strong> поддержал концерт на <strong>${donation.amount} ₽</strong>
+      ${donation.message ? `<div style="margin-top: 4px; font-size: 12px;">💬 "${escapeHtml(donation.message)}"</div>` : ''}
+    `;
+    chatContainer.appendChild(div);
+    if (scroll) chatContainer.scrollTop = chatContainer.scrollHeight;
+    
+    // Обновляем общую сумму донатов
+    updateDonationsTotal();
+  }
+  
+  // Добавить системное сообщение
+  function addSystemMessageToUI(message) {
+    addRoomMessageToUI({ user_id: 'system', message: message, created_at: Date.now() });
+  }
+  
+  // Обновить счётчик слушателей
+  async function updateRoomListenersCount() {
+    if (!currentRoom) return;
+    try {
+      const response = await fetch(`${API_BASE}/live-rooms/${currentRoom.id}`);
+      if (response.ok) {
+        const room = await response.json();
+        const listenersSpan = document.querySelector('#listenersCount');
+        if (listenersSpan) listenersSpan.textContent = room.listeners_count || 0;
+      }
+    } catch(e) {}
+  }
+  
+  // Обновить общую сумму донатов
+  async function updateDonationsTotal() {
+    if (!currentRoom) return;
+    try {
+      const response = await fetch(`${API_BASE}/room-donations/${currentRoom.id}`);
+      if (response.ok) {
+        const donations = await response.json();
+        const total = donations.reduce((sum, d) => sum + d.amount, 0);
+        const totalSpan = document.querySelector('#donationsTotal');
+        if (totalSpan) totalSpan.textContent = total;
+      }
+    } catch(e) {}
+  }
+  
+  // Показать модальное окно доната
+  function showDonateModal(roomId, hostId) {
+    const modalHtml = `
+      <div class="modal" id="donateModal" style="display: flex;">
+        <div class="modal-card">
+          <h3>💰 Поддержать концерт</h3>
+          <div class="form-group">
+            <label>Сумма</label>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button class="donate-amount-btn" data-amount="50">50 ₽</button>
+              <button class="donate-amount-btn" data-amount="100">100 ₽</button>
+              <button class="donate-amount-btn" data-amount="500">500 ₽</button>
+              <input type="number" id="customAmount" placeholder="Своя сумма" style="width: 120px;">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Сообщение (необязательно)</label>
+            <textarea id="donateMessage" rows="2" placeholder="Скажите что-то приятное..."></textarea>
+          </div>
+          <div class="modal-buttons">
+            <button class="btn-secondary" id="cancelDonateBtn">Отмена</button>
+            <button class="btn-primary" id="sendDonateBtn">Отправить</button>
+          </div>
+          <p style="font-size: 11px; color: var(--text-secondary); margin-top: 12px; text-align: center;">
+            ℹ️ Тестовый режим: деньги не списываются
+          </p>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    const modal = document.getElementById('donateModal');
+    
+    let selectedAmount = 100;
+    document.querySelectorAll('.donate-amount-btn').forEach(btn => {
+      btn.onclick = () => {
+        selectedAmount = parseInt(btn.getAttribute('data-amount'));
+        document.querySelectorAll('.donate-amount-btn').forEach(b => b.style.background = '');
+        btn.style.background = 'var(--accent)';
+        btn.style.color = 'white';
+      };
+    });
+    
+    document.getElementById('cancelDonateBtn').onclick = () => modal.remove();
+    document.getElementById('sendDonateBtn').onclick = async () => {
+      const customAmount = document.getElementById('customAmount').value;
+      if (customAmount) selectedAmount = parseInt(customAmount);
+      
+      if (isNaN(selectedAmount) || selectedAmount < 10) {
+        alert('Минимальная сумма 10 ₽');
+        return;
+      }
+      
+      const message = document.getElementById('donateMessage').value.trim();
+      
+      try {
+        const response = await fetch(`${API_BASE}/room-donations`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            room_id: roomId,
+            from_user_id: currentUser.id,
+            to_user_id: hostId,
+            amount: selectedAmount,
+            message: message
+          })
+        });
+        if (response.ok) {
+          if (currentSocket) {
+            currentSocket.emit('donation', { roomId, amount: selectedAmount, message, from_user_name: currentUser.name });
+          }
+          addDonationToUI({ from_user_name: currentUser.name, amount: selectedAmount, message });
+          modal.remove();
+        } else {
+          alert('Ошибка отправки');
+        }
+      } catch (e) {
+        console.error(e);
+        alert('Ошибка соединения');
+      }
+    };
   }
 
   

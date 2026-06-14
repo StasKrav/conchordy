@@ -2663,3 +2663,333 @@ textarea#restoreCodeInput {
   background: #a33508;
   transform: scale(0.98);
 }
+
+/* ===== АУДИО-КОМНАТЫ ===== */
+
+/* Список комнат */
+.rooms-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.room-card {
+  background: var(--card-bg);
+  border-radius: 20px;
+  padding: 16px;
+  border: 1px solid var(--border-light);
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.room-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.room-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.room-card-title {
+  font-weight: 600;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.live-badge {
+  background: #c2410c;
+  color: white;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-weight: normal;
+}
+
+.room-card-host {
+  font-size: 12px;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+
+.room-card-stats {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Страница комнаты */
+.room-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 70vh;
+}
+
+.room-header {
+  margin-bottom: 16px;
+}
+
+.room-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.room-host {
+  color: var(--accent);
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.room-stats {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+/* Аудио-плеер комнаты */
+.room-player {
+  background: linear-gradient(135deg, #f8f4ef 0%, #f0e8df 100%);
+  border-radius: 24px;
+  padding: 24px;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.room-player-avatar {
+  width: 80px;
+  height: 80px;
+  background: var(--accent);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  font-size: 36px;
+  color: white;
+}
+
+.room-player-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(194, 65, 12, 0.15);
+  padding: 4px 12px;
+  border-radius: 30px;
+  font-size: 12px;
+  color: #c2410c;
+  margin-top: 12px;
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  background: #c2410c;
+  border-radius: 50%;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.5); }
+}
+
+/* Чат комнаты */
+.room-chat {
+  background: var(--card-bg);
+  border-radius: 20px;
+  border: 1px solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+  height: 300px;
+}
+
+.room-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.room-chat-message {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.room-chat-message.system {
+  color: var(--accent);
+  text-align: center;
+  font-size: 11px;
+  background: rgba(217, 108, 74, 0.08);
+  padding: 6px;
+  border-radius: 16px;
+}
+
+.room-chat-message.donation {
+  background: linear-gradient(135deg, #fff8e7, #fff0d8);
+  border-left: 3px solid #f5b042;
+  padding: 8px 12px;
+  border-radius: 12px;
+}
+
+.room-chat-message .author {
+  font-weight: 600;
+  color: var(--accent);
+  margin-right: 8px;
+}
+
+.room-chat-message .time {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.room-chat-input {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid var(--border-light);
+}
+
+.room-chat-input input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid var(--border-light);
+  border-radius: 30px;
+  font-size: 13px;
+}
+
+.room-chat-input button {
+  background: var(--accent);
+  border: none;
+  padding: 10px 16px;
+  border-radius: 30px;
+  color: white;
+  cursor: pointer;
+}
+
+/* Кнопка доната */
+.donate-btn {
+  background: linear-gradient(135deg, #f5b042, #e8922a);
+  border: none;
+  padding: 10px 20px;
+  border-radius: 40px;
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: 0.2s;
+}
+
+.donate-btn:hover {
+  transform: scale(1.02);
+  filter: brightness(1.05);
+}
+
+/* ===== БЛОК ЖИВЫХ КОМНАТ В ЛЕНТЕ ===== */
+.live-rooms-section {
+  background: linear-gradient(135deg, #fff5eb, #ffe8d9);
+  border-radius: 24px;
+  padding: 16px;
+  margin-bottom: 24px;
+  border: 1px solid rgba(217, 108, 74, 0.3);
+}
+
+.live-rooms-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.live-rooms-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.live-dot {
+  width: 10px;
+  height: 10px;
+  background: #c2410c;
+  border-radius: 50%;
+  animation: pulse 1.5s infinite;
+  display: inline-block;
+}
+
+.rooms-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.room-card {
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid var(--border-light);
+}
+
+.room-card:hover {
+  transform: translateX(4px);
+  border-color: var(--accent);
+  box-shadow: var(--shadow-sm);
+}
+
+.room-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.room-card-title {
+  font-weight: 600;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.live-badge {
+  background: #c2410c;
+  color: white;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-weight: normal;
+}
+
+.room-card-listeners {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.room-card-host {
+  font-size: 13px;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+
+.room-card-stats {
+  display: flex;
+  gap: 16px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+/* конец */
