@@ -225,7 +225,7 @@ function renderRoomScreen(room, isHost, messages, donations) {
           <div class="room-host">Ведущий: ${escapeHtml(room.host_name)}</div>
           <div class="room-stats">
             <span><span id="listenersCount">${room.listeners_count || 0}</span> слушателей</span>
-            <span>💰 <span id="donationsTotal">${totalDonations}</span> ₽ собрано</span>
+            <span><span id="donationsTotal">${totalDonations}</span> ₽ собрано</span>
           </div>
         </div>
         
@@ -396,7 +396,7 @@ function renderRoomScreen(room, isHost, messages, donations) {
           // Обновляем UI
           const statusDiv = document.querySelector(".room-player-status");
           if (statusDiv) {
-            statusDiv.innerHTML = '<span class="pulse-dot"></span> Эфир идёт';
+            statusDiv.innerHTML = '<span class="pulse-dot"></span>Эфир идёт';
           }
           startRoomBtn.style.display = "none";
 
@@ -723,7 +723,7 @@ async function startBroadcast(roomId) {
 
     const statusDiv = document.querySelector(".room-player-status");
     if (statusDiv) {
-      statusDiv.innerHTML = '<span class="pulse-dot"></span> 🔴 Эфир идёт';
+      statusDiv.innerHTML = '<span class="pulse-dot"></span>Эфир идёт';
       statusDiv.style.color = "#c2410c";
     }
 

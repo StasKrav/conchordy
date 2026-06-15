@@ -86,12 +86,21 @@ async function renderFeed() {
                     <span class="live-badge">LIVE</span>
                     ${escapeHtml(room.title)}
                   </div>
-                  <span class="room-card-listeners">👥 ${room.listeners_count || 0}</span>
+                  <span class="room-card-listeners">
+                  <svg width="30" height="20" viewBox="0 0 544 384" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="176" cy="144" r="64" stroke="currentColor" stroke-width="20" fill="none"/>
+                  <path d="M80,304 C112,208 240,208 272,304" stroke="currentColor" stroke-width="20" fill="none" stroke-linecap="round"/>
+                  <path d="M80,304 L464,304" stroke="currentColor" stroke-width="20" fill="none" stroke-linecap="round"/>
+                  <path d="M272,304 C304,208 432,208 464,304" stroke="currentColor" stroke-width="20" fill="none" stroke-linecap="round"/>
+                  <circle cx="368" cy="144" r="64" stroke="currentColor" stroke-width="20" fill="none"/>
+                  
+                  </svg>
+                  ${room.listeners_count || 0}</span>
                 </div>
                 <div class="room-card-host">${escapeHtml(room.host_name)}</div>
                 <div class="room-card-stats">
-                  <span>🎤 ${room.speakers_count || 1} спикеров</span>
-                  <span>💬 нажмите, чтобы присоединиться</span>
+                  <span>${room.speakers_count || 1} спикеров</span>
+                  <span>нажмите, чтобы присоединиться</span>
                 </div>
 
                 ${
