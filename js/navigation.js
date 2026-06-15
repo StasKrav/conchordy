@@ -22,28 +22,42 @@ function setActiveScreen(screenId) {
 }
 
 async function attachEvents() {
-  const navItems = document.querySelectorAll(".nav-item");
-  navItems.forEach((btn) => {
-    btn.addEventListener("click", (e) => {
+  const navItems = document.querySelectorAll('.nav-item');
+  navItems.forEach(btn => {
+    btn.addEventListener('click', (e) => {
       e.preventDefault();
-      const screen = btn.getAttribute("data-screen");
-
-      navItems.forEach((nav) => nav.classList.remove("active"));
-      btn.classList.add("active");
-
-      document
-        .querySelectorAll(".screen")
-        .forEach((s) => s.classList.remove("active"));
+      const screen = btn.getAttribute('data-screen');
+      
+      navItems.forEach(nav => nav.classList.remove('active'));
+      btn.classList.add('active');
+      
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
       const targetScreen = document.getElementById(`${screen}Screen`);
-      if (targetScreen) targetScreen.classList.add("active");
-
-      if (screen === "profile") {
+      if (targetScreen) targetScreen.classList.add('active');
+      
+      const fab = document.getElementById('fabBtn');
+      
+      if (screen === 'feed') {
+        if (fab) fab.style.display = 'flex';
+        renderFeed();
+      }
+      
+      if (screen === 'search') {
+        if (fab) fab.style.display = 'flex';
+        renderSearchScreen();
+      }
+      
+      if (screen === 'profile') {
+        if (fab) fab.style.display = 'flex';
         viewingUserId = null;
         renderProfileScreen();
       }
-
-      if (screen === "search") {
-        renderSearchScreen();
+      
+      if (screen === 'market') {
+        if (fab) fab.style.display = 'none';
+        if (typeof renderMarketScreen === 'function') {
+          renderMarketScreen();
+        }
       }
     });
   });
@@ -164,34 +178,40 @@ async function attachEvents() {
     };
   }
 
-  document.querySelectorAll(".menu-item").forEach((item) => {
-    item.addEventListener("click", () => {
-      const action = item.getAttribute("data-action");
-      const menuEl = document.getElementById("sideMenu");
-      const overlayEl = document.getElementById("menuOverlay");
-      if (menuEl) menuEl.classList.remove("open");
-      if (overlayEl) overlayEl.style.display = "none";
-
-      if (action === "logout") {
+  document.querySelectorAll('.menu-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const action = item.getAttribute('data-action');
+      const menuEl = document.getElementById('sideMenu');
+      const overlayEl = document.getElementById('menuOverlay');
+      
+      if (menuEl) menuEl.classList.remove('open');
+      if (overlayEl) overlayEl.style.display = 'none';
+      
+      if (action === 'logout') {
         currentUser = null;
-        localStorage.removeItem("backstage_current_user");
-        authMode = "login";
+        localStorage.removeItem('backstage_current_user');
+        authMode = 'login';
         showAuthScreen();
-      } else if (action === "profile") {
+      } else if (action === 'profile') {
         viewingUserId = null;
-        setActiveScreen("profile");
+        setActiveScreen('profile');
         renderProfileScreen();
-      } else if (action === "invites") {
+      } else if (action === 'invites') {
         viewingUserId = null;
-        setActiveScreen("profile");
-        profileActiveTab = "invites";
+        setActiveScreen('profile');
+        profileActiveTab = 'invites';
         renderProfileScreen();
-      } else if (action === "notifications") {
-        alert("Уведомления скоро появятся");
-      } else if (action === "about") {
-        window.location.href = "about.html";
-      } else if (action === "live") {
+      } else if (action === 'notifications') {
+        alert('Уведомления скоро появятся');
+      } else if (action === 'about') {
+        window.location.href = 'about.html';
+      } else if (action === 'live') {
         showCreateRoomModal();
+      } else if (action === 'market') {
+        setActiveScreen('market');
+        if (typeof renderMarketScreen === 'function') {
+          renderMarketScreen();
+        }
       }
     });
   });

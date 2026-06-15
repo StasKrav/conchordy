@@ -81,12 +81,26 @@ function renderMainApp() {
           <div class="screen" id="profileScreen"></div>
           <div class="screen" id="liveScreen"></div>
           <div class="screen" id="roomScreen"></div>
+          <div class="screen" id="marketScreen"></div>
         </div>
         
         <nav class="bottom-nav">
-          <a href="#" class="nav-item active" data-screen="feed"><i class="fa-regular fa-rectangle-list nav-icon"></i><span>Лента</span></a>
-          <a href="#" class="nav-item" data-screen="search"><i class="fa-regular fa-compass nav-icon"></i><span>Поиск</span></a>
-          <a href="#" class="nav-item" data-screen="profile"><i class="fa-regular fa-user nav-icon"></i><span>Профиль</span></a>
+          <a href="#" class="nav-item active" data-screen="feed">
+            <i class="fa-regular fa-rectangle-list nav-icon"></i>
+            <span>Лента</span>
+          </a>
+          <a href="#" class="nav-item" data-screen="search">
+            <i class="fa-regular fa-compass nav-icon"></i>
+            <span>Поиск</span>
+          </a>
+          <a href="#" class="nav-item" data-screen="market">
+            <i class="fa-regular fa-store nav-icon"></i>
+            <span>Маркет</span>
+          </a>
+          <a href="#" class="nav-item" data-screen="profile">
+            <i class="fa-regular fa-user nav-icon"></i>
+            <span>Профиль</span>
+          </a>
         </nav>
         
         <button class="fab" id="fabBtn">+</button>
