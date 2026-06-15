@@ -86,19 +86,48 @@ function renderMainApp() {
         
         <nav class="bottom-nav">
           <a href="#" class="nav-item active" data-screen="feed">
-            <i class="fa-regular fa-rectangle-list nav-icon"></i>
+            <svg width="20" height="16" viewBox="0 0 544 448" xmlns="http://www.w3.org/2000/svg">
+            <path d="M80,80 L464,80 L464,368 L80,368 Z" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M208,144 L400,144" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+            <path d="M208,208 L400,208" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+            <path d="M208,272 L400,272" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+            
+            </svg>
             <span>Лента</span>
           </a>
           <a href="#" class="nav-item" data-screen="search">
-            <i class="fa-regular fa-compass nav-icon"></i>
+            <svg width="16" height="16" viewBox="0 0 522.0386719675123 522.0386719675123" xmlns="http://www.w3.org/2000/svg">
+            <path d="M229.01933598375618,229.01933598375618 L293.01933598375615,293.01933598375615" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+            <path d="M229.01933598375618,229.01933598375618 L357.01933598375615,165.01933598375618" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+            <path d="M357.01933598375615,165.01933598375618 L293.01933598375615,293.01933598375615" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+            <path d="M293.01933598375615,293.01933598375615 L165.01933598375618,357.01933598375615" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+            <path d="M165.01933598375618,357.01933598375615 L229.01933598375618,229.01933598375618" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+            <circle cx="261.01933598375615" cy="261.01933598375615" r="181.01933598375618" stroke="currentColor" stroke-width="32" fill="none"/>
+            
+            </svg>
             <span>Поиск</span>
           </a>
           <a href="#" class="nav-item" data-screen="market">
-            <i class="fa-regular fa-store nav-icon"></i>
+            <svg width="18" height="16" viewBox="0 0 480 437.40121946685673" xmlns="http://www.w3.org/2000/svg">
+            <path d="M80,112 L112,208" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+            <path d="M80,112 L336,112" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+            <path d="M368,80 L304,272" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+            <path d="M112,208 L304,208" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+            <path d="M304,272 L118,271" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+            <path d="M368,80 L400,80" stroke="#3b82f6" stroke-width="32" fill="none" stroke-linecap="round"/>
+            <circle cx="289" cy="341" r="16.401219466856723" stroke="currentColor" stroke-width="32" fill="none"/>
+            <circle cx="150" cy="340" r="16.76305461424021" stroke="currentColor" stroke-width="32" fill="none"/>
+            
+            </svg>
             <span>Маркет</span>
           </a>
           <a href="#" class="nav-item" data-screen="profile">
-            <i class="fa-regular fa-user nav-icon"></i>
+            <svg width="16" height="16" viewBox="0 0 416 448" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="208" cy="144" r="64" stroke="currentColor" stroke-width="32" fill="none"/>
+            <path d="M80,368 C112,208 304,208 336,368" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+            <path d="M80,368 L336,368" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+            
+            </svg>
             <span>Профиль</span>
           </a>
         </nav>

@@ -10,13 +10,13 @@ function renderMarketScreen() {
     <div class="market-container">
       <div class="market-tabs">
         <button class="market-tab ${marketActiveTab === 'buy' ? 'active' : ''}" data-tab="buy">
-          <i class="fa-regular fa-cart-shopping"></i> Купить
+           Купить
         </button>
         <button class="market-tab ${marketActiveTab === 'my-products' ? 'active' : ''}" data-tab="my-products">
-          <i class="fa-regular fa-box"></i> Мои товары
+           Мои товары
         </button>
         <button class="market-tab ${marketActiveTab === 'history' ? 'active' : ''}" data-tab="history">
-          <i class="fa-regular fa-clock-rotate-left"></i> История
+           История
         </button>
       </div>
       
@@ -97,7 +97,7 @@ async function renderBuyTab(container) {
             </div>
           ` : ''}
           <button class="buy-license-btn" data-post-id="${post.id}" data-price="${post.license_price || 500}">
-            <i class="fa-regular fa-cart-plus"></i> Купить лицензию
+             Купить лицензию
           </button>
         </div>
       `).join('')}
@@ -140,10 +140,20 @@ function renderMyProductsTab(container) {
   if (myPosts.length === 0) {
     container.innerHTML = `
       <div class="market-empty">
-        <i class="fa-regular fa-box-open"></i>
+        <svg width="110" height="100" viewBox="0 0 480 437.40121946685673" xmlns="http://www.w3.org/2000/svg">
+        <path d="M80,112 L112,208" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+        <path d="M80,112 L336,112" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+        <path d="M368,80 L304,272" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+        <path d="M112,208 L304,208" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+        <path d="M304,272 L118,271" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+        <path d="M368,80 L400,80" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+        <circle cx="289" cy="341" r="16.401219466856723" stroke="currentColor" stroke-width="32" fill="none"/>
+        <circle cx="150" cy="340" r="16.76305461424021" stroke="currentColor" stroke-width="32" fill="none"/>
+        
+        </svg>
         <p>У вас нет товаров в продаже</p>
         <button class="create-product-btn" id="createProductBtn">
-          <i class="fa-regular fa-plus"></i> Выставить бит на продажу
+           Выставить бит на продажу
         </button>
       </div>
     `;
@@ -192,7 +202,18 @@ async function renderHistoryTab(container) {
   // Заглушка — потом подключим реальные данные
   container.innerHTML = `
     <div class="market-empty">
-      <i class="fa-regular fa-clock-rotate-left"></i>
+      <svg width="100" height="110" viewBox="0 0 420 452" xmlns="http://www.w3.org/2000/svg">
+      <path d="M50,50 L370,50 L370,402 L50,402 Z" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M114,114 L114,114" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+      <path d="M178,114 L306,114" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+      <path d="M178,178 L306,178" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+      <path d="M178,242 L306,242" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+      <path d="M178,306 L306,306" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+      <path d="M114,178 L114,178" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+      <path d="M114,242 L114,242" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+      <path d="M114,306 L114,306" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+      
+      </svg>
       <p>История покупок и продаж</p>
       <small>Скоро здесь появятся ваши транзакции</small>
     </div>
