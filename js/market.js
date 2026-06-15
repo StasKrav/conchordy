@@ -89,11 +89,28 @@ async function renderBuyTab(container) {
             </div>
             <div class="product-title">${escapeHtml(product.title)}</div>
             <div class="product-author">
-              <i class="fa-regular fa-user"></i> ${escapeHtml(product.seller_name)}
+              <svg width="16" height="16" viewBox="0 0 292 305.25483399593907" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="146" cy="95.25483399593904" r="45.254833995939045" stroke="currentColor" stroke-width="20" fill="none"/>
+              <path d="M50,255.25483399593904 C50,159.25483399593904 242,159.25483399593904 242,255.25483399593904" stroke="currentColor" stroke-width="20" fill="none" stroke-linecap="round"/>
+              <path d="M50,255.25483399593904 L242,255.25483399593904" stroke="currentColor" stroke-width="20" fill="none" stroke-linecap="round"/>
+              
+              </svg> ${escapeHtml(product.seller_name)}
             </div>
             <div class="product-desc">${escapeHtml(product.description?.substring(0, 100) || '')}${product.description?.length > 100 ? '...' : ''}</div>
             <div class="product-license">
-              <i class="fa-regular fa-file-lines"></i> ${product.license_type === 'exclusive' ? 'Исключительная лицензия' : 'Неисключительная лицензия'}
+              <svg width="16" height="16" viewBox="0 0 260 292" xmlns="http://www.w3.org/2000/svg">
+              <path d="M50,50 L146,50" stroke="currentColor" stroke-width="20" fill="none" stroke-linecap="round"/>
+              <path d="M146,50 L146,114" stroke="currentColor" stroke-width="20" fill="none" stroke-linecap="round"/>
+              <path d="M146,114 L210,114" stroke="currentColor" stroke-width="20" fill="none" stroke-linecap="round"/>
+              <path d="M146,50 L210,114" stroke="currentColor" stroke-width="20" fill="none" stroke-linecap="round"/>
+              <path d="M210,114 L210,242" stroke="currentColor" stroke-width="20" fill="none" stroke-linecap="round"/>
+              <path d="M210,242 L50,242" stroke="currentColor" stroke-width="20" fill="none" stroke-linecap="round"/>
+              <path d="M50,242 L50,50" stroke="currentColor" stroke-width="20" fill="none" stroke-linecap="round"/>
+              <path d="M82,146 L114,146" stroke="currentColor" stroke-width="20" fill="none" stroke-linecap="round"/>
+              <path d="M82,178 L146,178" stroke="currentColor" stroke-width="20" fill="none" stroke-linecap="round"/>
+              
+              </svg>
+               ${product.license_type === 'exclusive' ? 'Исключительная лицензия' : 'Неисключительная лицензия'}
             </div>
             ${product.demo_url ? `
               <div class="product-demo">
@@ -202,8 +219,8 @@ async function renderMyProductsTab(container) {
             </div>
             <div class="product-title">${escapeHtml(product.title)}</div>
             <div class="product-stats">
-              <span><i class="fa-regular fa-chart-simple"></i> ${product.sales_count || 0} продаж</span>
-              <span><i class="fa-regular fa-clock"></i> ${formatDate(product.created_at)}</span>
+              <span> ${product.sales_count || 0} продаж</span>
+              <span> ${formatDate(product.created_at)}</span>
             </div>
             <div class="product-actions">
               <button class="remove-product-btn" data-product-id="${product.id}">
@@ -354,7 +371,12 @@ function showCreateProductModal() {
             <option value="exclusive">Exclusive (исключительная) — цена ×5</option>
           </select>
           <span class="license-type-hint">
-            <i class="fa-regular fa-circle-info"></i> 
+            <svg width="20" height="20" viewBox="0 0 164 164" xmlns="http://www.w3.org/2000/svg">
+            <path d="M50,82 L114,82" stroke="currentColor" stroke-width="20" fill="none" stroke-linecap="round"/>
+            <path d="M82,50 L114,82" stroke="currentColor" stroke-width="20" fill="none" stroke-linecap="round"/>
+            <path d="M114,82 L82,114" stroke="currentColor" stroke-width="20" fill="none" stroke-linecap="round"/>
+            
+            </svg>
             Non-exclusive — вы можете продавать бит нескольким покупателям. 
             Exclusive — только одному покупателю (цена выше).
           </span>
