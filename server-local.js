@@ -121,12 +121,25 @@ const storage = multer.diskStorage({
 
 const upload = multer({ 
   storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB для демо-постов
   fileFilter: (req, file, cb) => {
     if (file.mimetype === 'audio/mpeg') {
       cb(null, true);
     } else {
       cb(new Error('Только MP3 файлы'));
+    }
+  }
+});
+
+// Отдельный загрузчик для товаров (большие файлы)
+const productUpload = multer({ 
+  storage: storage,
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB для товаров
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'audio/mpeg' || file.mimetype === 'audio/wav') {
+      cb(null, true);
+    } else {
+      cb(new Error('Только MP3 или WAV файлы'));
     }
   }
 });
@@ -995,6 +1008,91 @@ app.put('/api/live-rooms/:roomId/end', (req, res) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ success: true });
   });
+});
+
+// ========== API ТОВАРОВ (МАРКЕТ) ==========
+
+// Получить все активные товары для витрины
+app.get('/api/products', (req, res) => {
+  db.all(`
+    SELECT p.*, u.name as seller_name, u.instruments as seller_instruments
+    FROM products p
+    JOIN users u ON p.user_id = u.id
+    WHERE p.status = 'active'
+    ORDER BY p.created_at DESC
+  `, (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+// Получить товары текущего пользователя
+app.get('/api/products/my/:userId', (req, res) => {
+  const { userId } = req.params;
+  
+  db.all(`
+    SELECT * FROM products
+    WHERE user_id = ? AND status = 'active'
+    ORDER BY created_at DESC
+  `, [userId], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+// Создать товар
+app.post('/api/products', (req, res) => {
+  const { user_id, title, description, price, license_type, demo_url, full_url } = req.body;
+  
+  if (!user_id || !title || !price) {
+    return res.status(400).json({ error: 'Не все поля заполнены' });
+  }
+  
+  const productId = 'prod_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+  
+  db.run(`
+    INSERT INTO products (id, user_id, title, description, price, license_type, demo_url, full_url, created_at, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
+  `, [productId, user_id, title, description || '', price, license_type || 'non-exclusive', demo_url || null, full_url || null, Date.now()],
+  function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true, productId });
+  });
+});
+
+// Удалить товар (скрыть)
+app.delete('/api/products/:productId', (req, res) => {
+  const { productId } = req.params;
+  const { user_id } = req.body;
+  
+  db.run(`UPDATE products SET status = 'removed' WHERE id = ? AND user_id = ?`,
+    [productId, user_id],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      if (this.changes === 0) return res.status(404).json({ error: 'Товар не найден' });
+      res.json({ success: true });
+    }
+  );
+});
+
+// Загрузка демо-файла для товара
+app.post('/api/upload-product-demo', productUpload.single('audio'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'Файл не загружен' });
+  }
+  const audioUrl = `/uploads/${req.file.filename}`;
+  console.log('🎵 Загружено демо товара:', audioUrl);
+  res.json({ success: true, audioUrl });
+});
+
+// Загрузка полного файла для товара
+app.post('/api/upload-product-full', productUpload.single('audio'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'Файл не загружен' });
+  }
+  const audioUrl = `/uploads/${req.file.filename}`;
+  console.log('🎵 Загружен полный файл товара:', audioUrl);
+  res.json({ success: true, audioUrl });
 });
 
 

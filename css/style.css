@@ -3378,4 +3378,84 @@ textarea#restoreCodeInput {
   border-radius: 30px;
   cursor: pointer;
 }
+
+.product-badge {
+  font-size: 11px;
+  background: #ffeee6;
+  color: var(--accent);
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.product-license {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin: 8px 0;
+}
+
+.product-license i {
+  margin-right: 4px;
+}
+
+/* ===== МОДАЛКА СОЗДАНИЯ ТОВАРА ===== */
+.product-modal .modal-card {
+  max-width: 500px;
+}
+
+.license-type-hint {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  display: block;
+}
+
+.upload-progress {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.file-info {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Стили для кнопок выбора файла */
+.file-upload-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.file-upload-btn {
+  background: rgba(217, 108, 74, 0.12);
+  border: 1px solid rgba(217, 108, 74, 0.25);
+  padding: 10px 18px;
+  border-radius: 40px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+}
+
+.file-upload-btn:hover {
+  background: rgba(217, 108, 74, 0.2);
+  transform: scale(1.02);
+}
+
+.file-name {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
 /*==конец маркета==*/
+
