@@ -1,0 +1,257 @@
+/* ===== МАРКЕТ ===== */
+.market-container {
+  padding: 0 0 20px 0;
+}
+
+.market-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  background: var(--card-bg);
+  padding: 4px;
+  border-radius: 48px;
+  border: 1px solid var(--border-light);
+}
+
+.market-tab {
+  flex: 1;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 40px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.market-tab.active {
+  background: var(--accent);
+  color: white;
+}
+
+.market-tab i {
+  font-size: 14px;
+}
+
+.market-products-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.market-product-card {
+  background: var(--card-bg);
+  border-radius: 20px;
+  padding: 16px;
+  border: 1px solid var(--border-light);
+}
+
+.product-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.product-price {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.product-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.product-author {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.product-author i {
+  margin-right: 4px;
+}
+
+.product-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.product-stats {
+  display: flex;
+  gap: 16px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.product-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.edit-product-btn, .remove-product-btn, .buy-license-btn {
+  padding: 8px 16px;
+  border-radius: 30px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.edit-product-btn {
+  background: none;
+  border: 1px solid var(--border-light);
+  color: var(--accent);
+}
+
+.remove-product-btn {
+  background: none;
+  border: 1px solid #c2410c;
+  color: #c2410c;
+}
+
+.buy-license-btn {
+  background: var(--accent);
+  border: none;
+  color: white;
+  width: 100%;
+  margin-top: 12px;
+}
+
+.buy-license-btn:hover {
+  background: var(--accent-dark);
+}
+
+.add-product-fab {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  background: var(--accent);
+  border: none;
+  padding: 12px 20px;
+  border-radius: 40px;
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 14px rgba(217, 108, 74, 0.4);
+  z-index: 100;
+}
+
+.market-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-secondary);
+}
+
+.market-empty i {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.create-product-btn {
+  margin-top: 16px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 30px;
+  cursor: pointer;
+}
+
+.product-badge {
+  font-size: 11px;
+  background: #ffeee6;
+  color: var(--accent);
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.product-license {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin: 8px 0;
+}
+
+.product-license i {
+  margin-right: 4px;
+}
+
+/* ===== МОДАЛКА СОЗДАНИЯ ТОВАРА ===== */
+.product-modal .modal-card {
+  max-width: 500px;
+}
+
+.license-type-hint {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  display: block;
+}
+
+.upload-progress {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.file-info {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Стили для кнопок выбора файла */
+.file-upload-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.file-upload-btn {
+  background: rgba(217, 108, 74, 0.12);
+  border: 1px solid rgba(217, 108, 74, 0.25);
+  padding: 10px 18px;
+  border-radius: 40px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+}
+
+.file-upload-btn:hover {
+  background: rgba(217, 108, 74, 0.2);
+  transform: scale(1.02);
+}
+
+.file-name {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/*==конец маркета==*/
