@@ -222,6 +222,7 @@ function renderRoomScreen(room, isHost, messages, donations) {
         
         <div class="room-header">
           <div class="room-title">${escapeHtml(room.title)}</div>
+          ${room.description ? `<div class="room-description">${escapeHtml(room.description)}</div>` : ''}
           <div class="room-host">Ведущий: ${escapeHtml(room.host_name)}</div>
           <div class="room-stats">
             <span><span id="listenersCount">${room.listeners_count || 0}</span> слушателей</span>

@@ -205,8 +205,10 @@ async function attachEvents() {
         alert('Уведомления скоро появятся');
       } else if (action === 'about') {
         window.location.href = 'about.html';
-      } else if (action === 'live') {
-        showCreateRoomModal();
+      } else if (action === 'audio-room') {
+        showCreateRoomModal('audio');
+      } else if (action === 'video-room') {
+        showCreateVideoRoomModal();
       } else if (action === 'market') {
         setActiveScreen('market');
         if (typeof renderMarketScreen === 'function') {

@@ -18,7 +18,7 @@ function getAvailableInvitesCount() {
 
 function generateInviteCode() {
   return (
-    "CHIUSOCLUB_" + Math.random().toString(36).substring(2, 10).toUpperCase()
+    "CONCHORDY_" + Math.random().toString(36).substring(2, 10).toUpperCase()
   );
 }
 

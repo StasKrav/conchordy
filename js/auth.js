@@ -9,7 +9,7 @@ function showAuthScreen() {
     root.innerHTML = `
         <div class="access-screen">
           <div class="access-card">
-            <h2 style="color: var(--accent);">ChiusoClub</h2>
+            <h2 style="color: var(--accent);">ConChordy</h2>
             <p style="margin: 8px 0 24px;">закрытое сообщество музыкантов</p>
             
             <div class="form-group"><label>Email</label><input type="email" id="loginEmail" placeholder="your@email.com"></div>

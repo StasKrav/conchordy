@@ -1095,7 +1095,21 @@ app.post('/api/upload-product-full', productUpload.single('audio'), (req, res) =
   res.json({ success: true, audioUrl });
 });
 
+// ========== API ВИДЕО-КОМНАТ ==========
 
+app.post('/api/lessons', (req, res) => {
+  const { teacher_id, student_id, scheduled_at, duration, price } = req.body;
+  const lessonId = 'lesson_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+  const roomId = 'video_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+  
+  db.run(`
+    INSERT INTO lessons (id, teacher_id, student_id, scheduled_at, duration, price, room_id, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `, [lessonId, teacher_id, student_id, scheduled_at, duration, price, roomId, Date.now()], (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true, lessonId, roomId });
+  });
+});
 
 
 server.listen(port, () => {

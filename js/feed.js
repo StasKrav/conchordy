@@ -98,6 +98,7 @@ async function renderFeed() {
                   ${room.listeners_count || 0}</span>
                 </div>
                 <div class="room-card-host">${escapeHtml(room.host_name)}</div>
+                ${room.description ? `<div class="room-card-desc">${escapeHtml(room.description)}</div>` : ''}
                 <div class="room-card-stats">
                   <span>${room.speakers_count || 1} спикеров</span>
                   <span>нажмите, чтобы присоединиться</span>

@@ -25,7 +25,7 @@ function renderMainApp() {
                     d="m -75.342331,-42.141541 a 34.257706,33.912876 0 0 1 -25.391159,32.7573235 34.257706,33.912876 0 0 1 -38.53459,-15.8008855 34.257706,33.912876 0 0 1 5.44419,-40.936463 34.257706,33.912876 0 0 1 41.352708,-5.389386" 
                     transform="matrix(-0.88582572,-0.4640181,0.47738135,-0.87869622,0,0)"/>
             </svg>
-            <span style="line-height: 1;">Chiuso<span style="color: var(--accent);">Club</span></span>
+            <span style="line-height: 1;">Con<span style="color: var(--accent);">Chordy</span></span>
           </div>
           <button class="hamburger" id="hamburgerBtn" style="display: flex; align-items: flex-end; justify-content: center;">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
@@ -183,12 +183,21 @@ function renderMainApp() {
             <span>Уведомления</span>
           </div>
 
-          <div class="menu-item" data-action="live">
+          <div class="menu-item" data-action="audio-room">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <circle cx="12" cy="12" r="10"/>
-              <polygon points="10 8 16 12 10 16 10 8" fill="currentColor"/>
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <path d="M12 19v3"/>
             </svg>
-            <span>Начать эфир</span>
+            <span>Audio-room</span>
+          </div>
+          
+          <div class="menu-item" data-action="video-room">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <rect x="2" y="5" width="16" height="14" rx="2"/>
+              <path d="M22 7l-6 5 6 5V7z"/>
+            </svg>
+            <span>Video-room</span>
           </div>
   
           <div class="menu-item" id="themeMenuItem">
