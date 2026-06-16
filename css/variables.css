@@ -1,0 +1,30 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family:
+    "Comfortaa",
+    "Inter",
+    system-ui,
+    -apple-system,
+    sans-serif;
+  background: #fdf7f0;
+  color: #2e2e2e;
+  line-height: 1.45;
+}
+
+:root {
+  --bg-body: #fdf7f0;
+  --card-bg: #ffffff;
+  --accent: #d96c4a;
+  --accent-dark: #bf5a3a;
+  --text-primary: #2e2e2e;
+  --text-secondary: #7a6f64;
+  --border-light: #eae2d9;
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06);
+  --radius-card: 20px;
+}
