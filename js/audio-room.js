@@ -64,30 +64,52 @@ function showCreateRoomModal() {
 
 // Открыть комнату
 async function openRoom(roomId, isHost = false) {
-  // Скрываем кнопку создания поста
   const fab = document.getElementById("fabBtn");
   if (fab) fab.style.display = "none";
+  
   try {
     const response = await fetch(`${API_BASE}/live-rooms/${roomId}`);
     if (!response.ok) throw new Error("Комната не найдена");
     const room = await response.json();
     currentRoom = room;
 
-    // Загружаем сообщения чата
+    // Если пользователь — хост этой комнаты
+    const isHostUser = currentUser && room.host_id === currentUser.id;
+    const isHostMode = isHost || isHostUser;
+
+    // Загружаем данные
     const messagesResponse = await fetch(`${API_BASE}/room-messages/${roomId}`);
     const messages = await messagesResponse.json();
-
-    // Загружаем донаты
-    const donationsResponse = await fetch(
-      `${API_BASE}/room-donations/${roomId}`,
-    );
+    const donationsResponse = await fetch(`${API_BASE}/room-donations/${roomId}`);
     const donations = await donationsResponse.json();
 
-    renderRoomScreen(room, isHost, messages, donations);
+    renderRoomScreen(room, isHostMode, messages, donations);
     setActiveScreen("room");
 
     // Подключаем WebSocket
-    initRoomSocket(roomId, isHost);
+    initRoomSocket(roomId, isHostMode);
+
+    // ✅ Если хост переподключается и комната уже live — восстанавливаем эфир
+    if (isHostMode && room.status === 'live') {
+      // Восстанавливаем трансляцию
+      console.log('🔄 Хост переподключается к активному эфиру');
+      
+      // Если был активный стрим, восстанавливаем его
+      if (isBroadcasting) {
+        // Восстанавливаем состояние
+        const startBtn = document.getElementById("startBroadcastBtn");
+        const pauseBtn = document.getElementById("pauseBroadcastBtn");
+        if (startBtn) startBtn.disabled = true;
+        if (pauseBtn) pauseBtn.disabled = false;
+        
+        const statusEl = document.querySelector('#broadcastStatus');
+        if (statusEl) {
+          statusEl.textContent = 'Эфир идёт';
+          statusEl.style.color = '#c2410c';
+        }
+      }
+    }
+
   } catch (e) {
     console.error(e);
     alert("Не удалось загрузить комнату");
@@ -219,25 +241,31 @@ function renderRoomScreen(room, isHost, messages, donations) {
             Назад
           </button>
         </div>
-        
-        <div class="room-header">
-          <div class="room-title">${escapeHtml(room.title)}</div>
-          ${room.description ? `<div class="room-description">${escapeHtml(room.description)}</div>` : ''}
-          <div class="room-host">Ведущий: ${escapeHtml(room.host_name)}</div>
-          <div class="room-stats">
-            <span><span id="listenersCount">${room.listeners_count || 0}</span> слушателей</span>
-            <span><span id="donationsTotal">${totalDonations}</span> ₽ собрано</span>
+
+          
+        ${isHost ? `
+          <div class="room-player-host">
+            <div class="room-player-status-host">
+              <span class="pulse-dot ${room.status === 'live' ? 'active' : 'inactive'}"></span>
+              <span id="broadcastStatus">${room.status === 'live' ? 'Эфир идёт' : 'Эфир не начат'}</span>
+            </div>
+            <div class="room-player-stats-host">
+              <span><span id="listenersCount">${room.listeners_count || 0}</span> слушателей</span>
+              <span><span id="donationsTotal">${totalDonations}</span> ₽</span>
+            </div>
           </div>
-        </div>
-        
-        <div class="room-player">
-          <div class="room-player-avatar">${room.host_name.charAt(0)}</div>
-          <div class="room-player-status">
-            <span class="pulse-dot"></span>
-            ${isHost ? "Вы в эфире" : "Слушаем"}
+        ` : `
+          <div class="room-player">
+            <div class="room-player-avatar">${room.host_name.charAt(0)}</div>
+            <div class="room-player-status">
+              <span class="pulse-dot active"></span>
+              Слушаем
+            </div>
+            <button class="donate-btn" id="donateBtn">
+              <i class="fa-regular fa-heart"></i> Поддержать
+            </button>
           </div>
-          ${!isHost ? `<button class="donate-btn" id="donateBtn"><i class="fa-regular fa-heart"></i> Поддержать</button>` : ""}
-        </div>
+        `}
 
         <div class="audio-controls">
           ${
@@ -300,24 +328,34 @@ function renderRoomScreen(room, isHost, messages, donations) {
 
   // Обработчики
   document.getElementById("backFromRoomBtn").onclick = () => {
-    if (currentSocket) {
-      currentSocket.emit(
-        "leave-room",
-        room.id,
-        currentUser.id,
-        currentUser.name,
-      );
-      currentSocket.disconnect();
-      currentSocket = null;
+    // Если ведущий вышел — комната продолжает жить
+    if (isHost) {
+      if (confirm("Вы выходите из эфира. Комната останется активной. Вернуться можно будет через ленту.")) {
+        // Выход как ведущий
+        if (currentSocket) {
+          currentSocket.emit("leave-room", room.id, currentUser.id, currentUser.name);
+          currentSocket.disconnect();
+          currentSocket = null;
+        }
+        currentRoom = null;
+        const fab = document.getElementById("fabBtn");
+        if (fab) fab.style.display = "flex";
+        setActiveScreen("feed");
+        renderFeed();
+      }
+    } else {
+      // Слушатель просто выходит
+      if (currentSocket) {
+        currentSocket.emit("leave-room", room.id, currentUser.id, currentUser.name);
+        currentSocket.disconnect();
+        currentSocket = null;
+      }
+      currentRoom = null;
+      const fab = document.getElementById("fabBtn");
+      if (fab) fab.style.display = "flex";
+      setActiveScreen("feed");
+      renderFeed();
     }
-    currentRoom = null;
-
-    // Показываем кнопку создания поста
-    const fab = document.getElementById("fabBtn");
-    if (fab) fab.style.display = "flex";
-
-    setActiveScreen("feed");
-    renderFeed();
   };
 
   const chatInput = document.getElementById("roomChatInput");
@@ -527,93 +565,98 @@ async function updateDonationsTotal() {
 
 // Показать модальное окно доната
 function showDonateModal(roomId, hostId) {
+  // Защита от дублирования
+  if (document.getElementById('donateModal')) return;
+  
   const modalHtml = `
-      <div class="modal" id="donateModal" style="display: flex;">
-        <div class="modal-card">
-          <h3>💰 Поддержать эфир</h3>
-          <div class="form-group">
-            <label>Сумма</label>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-              <button class="donate-amount-btn" data-amount="50">50 ₽</button>
-              <button class="donate-amount-btn" data-amount="100">100 ₽</button>
-              <button class="donate-amount-btn" data-amount="500">500 ₽</button>
-              <input type="number" id="customAmount" placeholder="Своя сумма" style="width: 120px;">
-            </div>
+    <div class="modal" id="donateModal" style="display: flex;">
+      <div class="modal-card">
+        <h3>Поддержать эфир</h3>
+        <div class="form-group">
+          <label>Сумма</label>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button class="donate-amount-btn" data-amount="50">50 ₽</button>
+            <button class="donate-amount-btn active" data-amount="100">100 ₽</button>
+            <button class="donate-amount-btn" data-amount="500">500 ₽</button>
+            <button class="donate-amount-btn" data-amount="1000">1000 ₽</button>
+            <input type="number" id="customAmount" placeholder="Своя" min="10" style="width: 100px;">
           </div>
-          <div class="form-group">
-            <label>Сообщение (необязательно)</label>
-            <textarea id="donateMessage" rows="2" placeholder="Скажите что-то приятное..."></textarea>
-          </div>
-          <div class="modal-buttons">
-            <button class="btn-secondary" id="cancelDonateBtn">Отмена</button>
-            <button class="btn-primary" id="sendDonateBtn">Отправить</button>
-          </div>
-          <p style="font-size: 11px; color: var(--text-secondary); margin-top: 12px; text-align: center;">
-            ℹ️ Тестовый режим: деньги не списываются
-          </p>
         </div>
+        <div class="form-group">
+          <label>Сообщение (необязательно)</label>
+          <textarea id="donateMessage" rows="2" placeholder="Скажите что-то приятное..."></textarea>
+        </div>
+        <div class="modal-buttons">
+          <button class="btn-secondary" id="cancelDonateBtn">Отмена</button>
+          <button class="btn-primary" id="sendDonateBtn">Отправить</button>
+        </div>
+        <p style="font-size: 11px; color: var(--text-secondary); margin-top: 12px; text-align: center;">
+          ℹ️ Тестовый режим: деньги не списываются
+        </p>
       </div>
-    `;
-  document.body.insertAdjacentHTML("beforeend", modalHtml);
-  const modal = document.getElementById("donateModal");
-
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+  
+  const modal = document.getElementById('donateModal');
   let selectedAmount = 100;
-  document.querySelectorAll(".donate-amount-btn").forEach((btn) => {
-    btn.onclick = () => {
-      selectedAmount = parseInt(btn.getAttribute("data-amount"));
-      document
-        .querySelectorAll(".donate-amount-btn")
-        .forEach((b) => (b.style.background = ""));
-      btn.style.background = "var(--accent)";
-      btn.style.color = "white";
-    };
+  
+  // Обработчики кнопок суммы (используем event delegation)
+  modal.addEventListener('click', function(e) {
+    const btn = e.target.closest('.donate-amount-btn');
+    if (btn) {
+      const amount = parseInt(btn.getAttribute('data-amount'));
+      selectedAmount = amount;
+      modal.querySelectorAll('.donate-amount-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
   });
-
-  document.getElementById("cancelDonateBtn").onclick = () => modal.remove();
-  document.getElementById("sendDonateBtn").onclick = async () => {
-    const customAmount = document.getElementById("customAmount").value;
+  
+  document.getElementById('cancelDonateBtn').onclick = () => modal.remove();
+  document.getElementById('sendDonateBtn').onclick = async () => {
+    const customAmount = document.getElementById('customAmount').value;
     if (customAmount) selectedAmount = parseInt(customAmount);
-
+    
     if (isNaN(selectedAmount) || selectedAmount < 10) {
-      alert("Минимальная сумма 10 ₽");
+      alert('Минимальная сумма 10 ₽');
       return;
     }
-
-    const message = document.getElementById("donateMessage").value.trim();
-
+    
+    const message = document.getElementById('donateMessage').value.trim();
+    
     try {
       const response = await fetch(`${API_BASE}/room-donations`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           room_id: roomId,
           from_user_id: currentUser.id,
           to_user_id: hostId,
           amount: selectedAmount,
-          message: message,
-        }),
+          message: message
+        })
       });
       if (response.ok) {
         if (currentSocket) {
-          currentSocket.emit("donation", {
+          currentSocket.emit('donation', {
             roomId,
             amount: selectedAmount,
             message,
-            from_user_name: currentUser.name,
+            from_user_name: currentUser.name
           });
         }
         addDonationToUI({
           from_user_name: currentUser.name,
           amount: selectedAmount,
-          message,
+          message
         });
         modal.remove();
       } else {
-        alert("Ошибка отправки");
+        alert('Ошибка отправки');
       }
     } catch (e) {
       console.error(e);
-      alert("Ошибка соединения");
+      alert('Ошибка соединения');
     }
   };
 }
@@ -693,6 +736,12 @@ async function startBroadcast(roomId) {
     return;
   }
 
+  // Если уже идёт трансляция, не создаём новую
+    if (isBroadcasting && localStream) {
+      console.log('⚠️ Трансляция уже идёт');
+      return;
+    }
+
   try {
     // Если уже есть поток, но он остановлен (пауза) — создаём новый
     if (localStream) {
@@ -727,6 +776,20 @@ async function startBroadcast(roomId) {
       statusDiv.innerHTML = '<span class="pulse-dot"></span>Эфир идёт';
       statusDiv.style.color = "#c2410c";
     }
+
+    // Обновляем точку
+      const pulseDot = document.querySelector('.pulse-dot');
+        if (pulseDot) {
+          pulseDot.classList.remove('inactive');  // ✅ убираем inactive
+          pulseDot.classList.add('active');       // ✅ добавляем active
+        }
+    
+      // Найти элемент статуса
+      const statusEl = document.querySelector('#broadcastStatus');
+      if (statusEl) {
+        statusEl.textContent = 'Эфир идёт';
+        statusEl.style.color = '#c2410c';
+      }
 
     const audioStatus = document.getElementById("audioStatus");
     if (audioStatus) {
@@ -771,6 +834,19 @@ function pauseBroadcast() {
     statusDiv.innerHTML = '<span class="pulse-dot"></span> ⏸ Эфир на паузе';
     statusDiv.style.color = "#b85c3a";
   }
+
+  const pulseDot = document.querySelector('.pulse-dot');
+    if (pulseDot) {
+      pulseDot.classList.remove('active');    // ✅ убираем active
+      pulseDot.classList.add('inactive');     // ✅ добавляем inactive
+    }
+  
+    const statusEl = document.querySelector('#broadcastStatus');
+    if (statusEl) {
+      statusEl.textContent = '⏸ Пауза';
+      statusEl.style.color = '#b85c3a';
+    }
+  
 
   const audioStatus = document.getElementById("audioStatus");
   if (audioStatus) {

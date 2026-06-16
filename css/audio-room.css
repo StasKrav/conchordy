@@ -549,3 +549,110 @@
   background: #f8f4ef;
   border-radius: 16px;
 }
+
+/* ===== КОМПАКТНАЯ КАРТОЧКА ВЕДУЩЕГО ===== */
+.room-player-host {
+  background: linear-gradient(135deg, #f8f4ef 0%, #f0e8df 100%);
+  border-radius: 16px;
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.room-player-status-host {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.room-player-status-host .pulse-dot {
+  width: 8px;
+  height: 8px;
+  background: #c2410c;
+  border-radius: 50%;
+  animation: pulse 1.5s infinite;
+  display: inline-block;
+}
+
+.room-player-status-host .pulse-dot.inactive {
+  animation: none;
+  background: var(--text-secondary);
+}
+
+.room-player-stats-host {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.room-player-stats-host span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Карточка слушателя (остаётся как была) */
+.room-player {
+  background: linear-gradient(135deg, #f8f4ef 0%, #f0e8df 100%);
+  border-radius: 24px;
+  padding: 16px;
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.room-player-avatar {
+  width: 64px;
+  height: 64px;
+  background: var(--accent);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12px;
+  font-size: 28px;
+  color: white;
+}
+
+.room-player-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(194, 65, 12, 0.15);
+  padding: 4px 12px;
+  border-radius: 30px;
+  font-size: 12px;
+  color: #c2410c;
+  margin-top: 8px;
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--text-secondary);
+  border-radius: 50%;
+  display: inline-block;
+  transition: background 0.3s;
+}
+
+.pulse-dot.active {
+  background: #c2410c;
+  animation: pulse 1.5s infinite;
+}
+
+.pulse-dot.inactive {
+  background: var(--text-secondary);
+  animation: none;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.5); }
+}

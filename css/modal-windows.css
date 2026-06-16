@@ -636,3 +636,44 @@
     height: 38px;
   }
 }
+
+/* ===== КНОПКИ ВЫБОРА СУММЫ В ДОНАТЕ ===== */
+.donate-amount-btn {
+  padding: 10px 16px;
+  border-radius: 40px;
+  border: 1px solid var(--border-light);
+  background: var(--card-bg);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+  color: var(--text-secondary);
+  flex: 1;
+  min-width: 70px;
+}
+
+.donate-amount-btn:hover {
+  background: var(--border-light);
+  transform: scale(1.02);
+}
+
+.donate-amount-btn.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+#customAmount {
+  width: 120px;
+  padding: 10px 14px;
+  border-radius: 40px;
+  border: 1px solid var(--border-light);
+  font-size: 14px;
+  font-family: inherit;
+  text-align: center;
+}
+
+#customAmount:focus {
+  outline: none;
+  border-color: var(--accent);
+}
