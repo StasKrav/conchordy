@@ -1,0 +1,480 @@
+/* ===== ТЁМНАЯ ТЕМА: КОМПОНЕНТЫ ===== */
+[data-theme="dark"] .app-header {
+  background: rgba(26, 26, 26, 0.92);
+  border-bottom-color: var(--border-light);
+}
+
+[data-theme="dark"] .bottom-nav {
+  background: rgba(45, 45, 45, 0.94);
+  border-top-color: var(--border-light);
+}
+
+[data-theme="dark"] .post-card {
+  background: var(--card-bg);
+  border-color: var(--border-light);
+}
+
+[data-theme="dark"] .profile-header-card {
+  background: var(--card-bg);
+  border-color: var(--border-light);
+}
+
+[data-theme="dark"] .modal-card {
+  background: var(--card-bg);
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] textarea,
+[data-theme="dark"] select {
+  background: var(--input-bg);
+  color: var(--text-primary);
+  border-color: var(--border-light);
+}
+
+[data-theme="dark"] .filter-badge {
+  background: var(--hover-bg);
+}
+
+[data-theme="dark"] .badge-type {
+  background: var(--hover-bg);
+}
+
+[data-theme="dark"] .genre-filter-btn {
+  background: var(--card-bg);
+  border-color: var(--border-light);
+}
+
+[data-theme="dark"] .side-menu {
+  background: var(--card-bg);
+  border-left-color: var(--border-light);
+}
+
+[data-theme="dark"] .menu-item {
+  border-bottom-color: var(--border-light);
+}
+
+[data-theme="dark"] .search-container {
+  background: var(--card-bg);
+  border-color: var(--border-light);
+}
+
+[data-theme="dark"] .search-result-card {
+  background: var(--card-bg);
+  border-color: var(--border-light);
+}
+
+[data-theme="dark"] .search-result-card:hover {
+  background: var(--hover-bg);
+}
+
+[data-theme="dark"] .feed-tabs {
+  background: var(--card-bg);
+  border-color: var(--border-light);
+}
+
+[data-theme="dark"] .chat-dialog-item {
+  background: var(--card-bg);
+  border-color: var(--border-light);
+}
+
+[data-theme="dark"] .room-chat {
+  background: var(--card-bg);
+  border-color: var(--border-light);
+}
+
+[data-theme="dark"] .room-card {
+  background: var(--card-bg);
+  border-color: var(--border-light);
+}
+
+[data-theme="dark"] .live-rooms-section {
+  background: linear-gradient(135deg, #2d2d2d, #3d3d3d);
+  border-color: rgba(217, 108, 74, 0.2);
+}
+
+[data-theme="dark"] .room-player {
+  background: linear-gradient(135deg, #2d2d2d, #3d3d3d);
+}
+
+[data-theme="dark"] .room-player-host {
+  background: linear-gradient(135deg, #2d2d2d, #3d3d3d);
+}
+
+[data-theme="dark"] .discuss-modal {
+  background: var(--card-bg);
+}
+
+[data-theme="dark"] .discuss-modal-post-info {
+  background: var(--hover-bg);
+}
+
+[data-theme="dark"] .discuss-message-content {
+  background: var(--card-bg);
+  border-color: var(--border-light);
+}
+
+[data-theme="dark"] .discuss-message.system .discuss-message-content {
+  background: var(--hover-bg);
+}
+
+[data-theme="dark"] .discuss-modal-footer {
+  background: var(--card-bg);
+  border-top-color: var(--border-light);
+}
+
+[data-theme="dark"] .confirm-modal {
+  background: var(--card-bg);
+}
+
+[data-theme="dark"] .comment-modal {
+  background: var(--card-bg);
+}
+
+[data-theme="dark"] .waveform-container {
+  background: var(--hover-bg);
+}
+
+[data-theme="dark"] .timeline-comment {
+  background: var(--card-bg);
+  border-color: var(--border-light);
+}
+
+[data-theme="dark"] .timeline-empty {
+  background: var(--hover-bg);
+  border-color: var(--border-light);
+}
+
+[data-theme="dark"] .market-product-card {
+  background: var(--card-bg);
+  border-color: var(--border-light);
+}
+
+[data-theme="dark"] .market-tabs {
+  background: var(--card-bg);
+  border-color: var(--border-light);
+}
+
+[data-theme="dark"] .invite-code-block {
+  background: var(--hover-bg);
+}
+
+[data-theme="dark"] .invited-item {
+  background: var(--card-bg);
+  border-color: var(--border-light);
+}
+
+[data-theme="dark"] .access-card {
+  background: var(--card-bg);
+}
+
+[data-theme="dark"] .chat-modal-card {
+  background: var(--card-bg);
+}
+
+[data-theme="dark"] .profile-stats {
+  border-top: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+}
+
+[data-theme="dark"] .waveform-play-btn {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+[data-theme="dark"] .waveform-play-btn:hover {
+  background: var(--accent-dark);
+}
+
+[data-theme="dark"] .waveform-stop-btn {
+  background: var(--card-bg);
+  border-color: var(--border-light);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .waveform-stop-btn:hover {
+  background: var(--hover-bg);
+}
+
+[data-theme="dark"] .waveform-rewind-1-btn,
+[data-theme="dark"] .waveform-rewind-10-btn,
+[data-theme="dark"] .waveform-forward-10-btn,
+[data-theme="dark"] .waveform-forward-1-btn {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .waveform-rewind-1-btn:hover,
+[data-theme="dark"] .waveform-rewind-10-btn:hover,
+[data-theme="dark"] .waveform-forward-10-btn:hover,
+[data-theme="dark"] .waveform-forward-1-btn:hover {
+  background: var(--hover-bg);
+}
+
+[data-theme="dark"] .waveform-group {
+  background: var(--card-bg);
+  border-color: var(--border-light);
+}
+
+[data-theme="dark"] .current-time-badge {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .total-time-value {
+  color: var(--text-secondary);
+}
+
+/* ===== ТЁМНАЯ ТЕМА: ПРОФИЛЬ ===== */
+
+[data-theme="dark"] .profile-genres .genre-badge {
+  background: var(--hover-bg);
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .profile-about {
+  background: var(--hover-bg);
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .profile-edit-btn {
+  background: none;
+  border-color: var(--border-light);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .profile-edit-btn:hover {
+  background: var(--hover-bg);
+}
+
+[data-theme="dark"] .profile-rating {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .profile-joined {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .profile-stats .stat strong {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .profile-stats .stat span {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .profile-avatar {
+  background: var(--accent);
+  color: white;
+}
+
+[data-theme="dark"] .profile-name {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .profile-bio {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .profile-edit-btn {
+  background: transparent;
+  border: 1px solid var(--border-light);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .profile-edit-btn:hover {
+  background: var(--hover-bg);
+}
+
+/* ===== ТЁМНАЯ ТЕМА: КАРТОЧКА ВИДЕО-ПРИГЛАШЕНИЯ ===== */
+
+[data-theme="dark"] .video-invite-card {
+  background: linear-gradient(135deg, #2d2d2d, #3d3d3d);
+  border: 1px solid var(--border-light);
+}
+
+[data-theme="dark"] .video-invite-text {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .video-join-btn {
+  background: var(--accent);
+  color: white;
+}
+
+[data-theme="dark"] .video-join-btn:hover {
+  background: var(--accent-dark);
+}
+
+/* ===== ТЁМНАЯ ТЕМА: МАРКЕТ ===== */
+
+[data-theme="dark"] .product-badge {
+  background: var(--hover-bg);
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .product-price {
+  color: var(--accent);
+}
+
+[data-theme="dark"] .product-title {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .product-author {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .product-desc {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .product-license {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .product-stats {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .market-empty {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .market-empty i {
+  opacity: 0.3;
+}
+
+[data-theme="dark"] .edit-product-btn {
+  color: var(--accent);
+  border-color: var(--border-light);
+}
+
+[data-theme="dark"] .edit-product-btn:hover {
+  background: var(--hover-bg);
+}
+
+[data-theme="dark"] .remove-product-btn {
+  color: #c2410c;
+  border-color: #c2410c;
+}
+
+[data-theme="dark"] .remove-product-btn:hover {
+  background: rgba(194, 65, 12, 0.2);
+}
+
+[data-theme="dark"] .buy-license-btn {
+  background: var(--accent);
+  color: white;
+}
+
+[data-theme="dark"] .buy-license-btn:hover {
+  background: var(--accent-dark);
+}
+
+[data-theme="dark"] .play-demo-btn {
+  background: var(--card-bg);
+  border-color: var(--border-light);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .play-demo-btn:hover {
+  background: var(--hover-bg);
+  border-color: var(--accent);
+}
+
+[data-theme="dark"] .add-product-fab {
+  background: var(--accent);
+  color: white;
+}
+
+[data-theme="dark"] .create-product-btn {
+  background: var(--accent);
+  color: white;
+}
+
+/* ===== ТЁМНАЯ ТЕМА: МОДАЛКИ И КНОПКИ ===== */
+
+[data-theme="dark"] .btn-secondary {
+  background: transparent;
+  border-color: var(--border-light);
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .btn-secondary:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .btn-primary {
+  background: var(--accent);
+  color: white;
+}
+
+[data-theme="dark"] .btn-primary:hover {
+  background: var(--accent-dark);
+}
+
+[data-theme="dark"] .modal-card {
+  background: var(--card-bg);
+  border-color: var(--border-light);
+}
+
+[data-theme="dark"] .modal-card h3 {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .modal-card .form-group label {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .modal-card input,
+[data-theme="dark"] .modal-card textarea,
+[data-theme="dark"] .modal-card select {
+  background: var(--input-bg);
+  color: var(--text-primary);
+  border-color: var(--border-light);
+}
+
+[data-theme="dark"] .modal-card input::placeholder,
+[data-theme="dark"] .modal-card textarea::placeholder {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .comment-modal-header h3 {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .comment-modal-time span {
+  background: var(--hover-bg);
+  color: var(--accent);
+}
+
+[data-theme="dark"] .comment-modal-textarea {
+  background: var(--input-bg);
+  color: var(--text-primary);
+  border-color: var(--border-light);
+}
+
+[data-theme="dark"] .comment-modal-textarea:focus {
+  border-color: var(--accent);
+}
+
+[data-theme="dark"] .comment-modal-cancel {
+  background: transparent;
+  border-color: var(--border-light);
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .comment-modal-cancel:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .comment-modal-submit {
+  background: var(--accent);
+  color: white;
+}
+
+[data-theme="dark"] .comment-modal-submit:hover {
+  background: var(--accent-dark);
+}

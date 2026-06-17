@@ -240,5 +240,30 @@ async function attachEvents() {
       renderFeed();
     });
   });
+
+  // Переключение темы
+  const themeMenuItem = document.getElementById('themeMenuItem');
+  const themeStatus = document.getElementById('themeStatus');
+  
+  // Проверяем сохранённую тему
+  const savedTheme = localStorage.getItem('theme') || 'light';
+  document.documentElement.setAttribute('data-theme', savedTheme);
+  if (themeStatus) {
+    themeStatus.textContent = savedTheme === 'dark' ? 'Тёмная' : 'Светлая';
+  }
+  
+  if (themeMenuItem) {
+    themeMenuItem.addEventListener('click', () => {
+      const currentTheme = document.documentElement.getAttribute('data-theme');
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('theme', newTheme);
+      
+      if (themeStatus) {
+        themeStatus.textContent = newTheme === 'dark' ? 'Тёмная' : 'Светлая';
+      }
+    });
+  }
 }
 

@@ -115,7 +115,7 @@ function renderMainApp() {
             <path d="M368,80 L304,272" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
             <path d="M112,208 L304,208" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
             <path d="M304,272 L118,271" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
-            <path d="M368,80 L400,80" stroke="#3b82f6" stroke-width="32" fill="none" stroke-linecap="round"/>
+            <path d="M368,80 L400,80" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
             <circle cx="289" cy="341" r="16.401219466856723" stroke="currentColor" stroke-width="32" fill="none"/>
             <circle cx="150" cy="340" r="16.76305461424021" stroke="currentColor" stroke-width="32" fill="none"/>
             
@@ -212,7 +212,7 @@ function renderMainApp() {
             <span>Video-room</span>
           </div>
   
-          <div class="menu-item" id="themeMenuItem">
+          <div class="menu-item" id="themeMenuItem" style="cursor: pointer;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
               <circle cx="12" cy="12" r="5"/>
               <line x1="12" y1="1" x2="12" y2="3"/>

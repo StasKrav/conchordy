@@ -1,3 +1,35 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family:
+    "Comfortaa",
+    "Inter",
+    system-ui,
+    -apple-system,
+    sans-serif;
+  background: #fdf7f0;
+  color: #2e2e2e;
+  line-height: 1.45;
+}
+
+/* ===== ТЁМНАЯ ТЕМА: ГЛОБАЛЬНЫЕ СТИЛИ ===== */
+[data-theme="dark"] {
+  background-color: var(--bg-body);
+}
+
+[data-theme="dark"] body {
+  background: var(--bg-body);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .app-wrapper {
+  background: var(--bg-body);
+  box-shadow: 0 0 0 1px var(--border-light);
+}
 
 .app-wrapper {
   max-width: 600px;
