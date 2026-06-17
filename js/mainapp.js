@@ -82,11 +82,12 @@ function renderMainApp() {
           <div class="screen" id="liveScreen"></div>
           <div class="screen" id="roomScreen"></div>
           <div class="screen" id="marketScreen"></div>
+          <div class="screen" id="chatScreen"></div>
         </div>
         
         <nav class="bottom-nav">
           <a href="#" class="nav-item active" data-screen="feed">
-            <svg width="20" height="16" viewBox="0 0 544 448" xmlns="http://www.w3.org/2000/svg">
+            <svg width="20" height="20" viewBox="0 0 544 448" xmlns="http://www.w3.org/2000/svg">
             <path d="M80,80 L464,80 L464,368 L80,368 Z" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M208,144 L400,144" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
             <path d="M208,208 L400,208" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
@@ -96,7 +97,7 @@ function renderMainApp() {
             <span>Лента</span>
           </a>
           <a href="#" class="nav-item" data-screen="search">
-            <svg width="16" height="16" viewBox="0 0 522.0386719675123 522.0386719675123" xmlns="http://www.w3.org/2000/svg">
+            <svg width="20" height="20" viewBox="0 0 522.0386719675123 522.0386719675123" xmlns="http://www.w3.org/2000/svg">
             <path d="M229.01933598375618,229.01933598375618 L293.01933598375615,293.01933598375615" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
             <path d="M229.01933598375618,229.01933598375618 L357.01933598375615,165.01933598375618" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
             <path d="M357.01933598375615,165.01933598375618 L293.01933598375615,293.01933598375615" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
@@ -108,7 +109,7 @@ function renderMainApp() {
             <span>Поиск</span>
           </a>
           <a href="#" class="nav-item" data-screen="market">
-            <svg width="18" height="16" viewBox="0 0 480 437.40121946685673" xmlns="http://www.w3.org/2000/svg">
+            <svg width="20" height="20" viewBox="0 0 480 437.40121946685673" xmlns="http://www.w3.org/2000/svg">
             <path d="M80,112 L112,208" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
             <path d="M80,112 L336,112" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
             <path d="M368,80 L304,272" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
@@ -121,8 +122,19 @@ function renderMainApp() {
             </svg>
             <span>Маркет</span>
           </a>
+          <a href="#" class="nav-item" data-screen="chat">
+            <svg width="20" height="20" viewBox="0 0 416 384" xmlns="http://www.w3.org/2000/svg">
+            <path d="M80,80 L336,80" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+            <path d="M336,80 L336,240" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+            <path d="M80,80 L80,304" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+            <path d="M144,240 L336,240" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+            <path d="M80,304 L144,240" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
+            
+            </svg>
+            <span>Чаты</span>
+          </a>
           <a href="#" class="nav-item" data-screen="profile">
-            <svg width="16" height="16" viewBox="0 0 416 448" xmlns="http://www.w3.org/2000/svg">
+            <svg width="20" height="20" viewBox="0 0 416 448" xmlns="http://www.w3.org/2000/svg">
             <circle cx="208" cy="144" r="64" stroke="currentColor" stroke-width="32" fill="none"/>
             <path d="M80,368 C112,208 304,208 336,368" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>
             <path d="M80,368 L336,368" stroke="currentColor" stroke-width="32" fill="none" stroke-linecap="round"/>

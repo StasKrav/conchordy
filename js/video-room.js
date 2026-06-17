@@ -59,6 +59,31 @@ function showVideoLessonModal(teacherId, teacherName, price) {
 
 // Начать видео-урок
 async function startVideoLesson(roomId, isTeacher, teacherName, studentName) {
+  // Если roomId начинается с 'call_', пробуем получить данные из БД
+  if (roomId.startsWith('call_')) {
+    try {
+      const response = await fetch(`${API_BASE}/video-calls/${roomId}`);
+      if (response.ok) {
+        const call = await response.json();
+        // Определяем роли
+        const isCreator = call.creator_id === currentUser.id;
+        const otherUser = isCreator ? call.participant_name : call.creator_name;
+        // Передаём правильные имена
+        if (isCreator) {
+          teacherName = otherUser;
+          studentName = null;
+        } else {
+          teacherName = call.creator_name;
+          studentName = null;
+        }
+        isTeacher = isCreator;
+      }
+    } catch (e) {
+      console.error('Ошибка загрузки звонка:', e);
+    }
+  }
+  
+  // Скрываем кнопку создания поста
   const fab = document.getElementById('fabBtn');
     if (fab) fab.style.display = 'none';
   const container = document.getElementById('roomScreen');

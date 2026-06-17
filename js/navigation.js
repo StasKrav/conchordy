@@ -52,6 +52,12 @@ async function attachEvents() {
         viewingUserId = null;
         renderProfileScreen();
       }
+
+      if (screen === 'chat') {
+        const fab = document.getElementById('fabBtn');
+        if (fab) fab.style.display = 'flex';
+        renderChatScreen();
+      }
       
       if (screen === 'market') {
         if (fab) fab.style.display = 'none';

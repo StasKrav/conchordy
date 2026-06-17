@@ -280,6 +280,32 @@ db.run(`CREATE TABLE IF NOT EXISTS room_donations (
 
 console.log('✅ Таблицы для аудио-комнат готовы');
 
+// Таблица видео-звонков (временные комнаты)
+db.run(`CREATE TABLE IF NOT EXISTS video_calls (
+  id TEXT PRIMARY KEY,
+  creator_id TEXT NOT NULL,
+  participant_id TEXT NOT NULL,
+  created_at INTEGER,
+  status TEXT DEFAULT 'active',
+  FOREIGN KEY (creator_id) REFERENCES users(id),
+  FOREIGN KEY (participant_id) REFERENCES users(id)
+)`);
+console.log('✅ Таблица video_calls готова');
+
+// Таблица сообщений (личные чаты)
+db.run(`CREATE TABLE IF NOT EXISTS messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  from_user_id TEXT NOT NULL,
+  to_user_id TEXT NOT NULL,
+  message TEXT NOT NULL,
+  is_read INTEGER DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY (from_user_id) REFERENCES users(id),
+  FOREIGN KEY (to_user_id) REFERENCES users(id)
+)`);
+console.log('✅ Таблица messages готова');
+
+
 // Добавляем счётчики в users (если нет)
 db.all("PRAGMA table_info(users)", (err, columns) => {
   if (err) return console.error(err);
@@ -1108,6 +1134,140 @@ app.post('/api/lessons', (req, res) => {
   `, [lessonId, teacher_id, student_id, scheduled_at, duration, price, roomId, Date.now()], (err) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ success: true, lessonId, roomId });
+  });
+});
+
+// ========== API ВИДЕО-ЗВОНКОВ ==========
+
+// Создать видео-звонок
+app.post('/api/video-calls', (req, res) => {
+  const { id, creator_id, participant_id } = req.body;
+  
+  db.run(`
+    INSERT INTO video_calls (id, creator_id, participant_id, created_at, status)
+    VALUES (?, ?, ?, ?, 'active')
+  `, [id, creator_id, participant_id, Date.now()], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true, callId: id });
+  });
+});
+
+// Получить информацию о звонке
+app.get('/api/video-calls/:callId', (req, res) => {
+  const { callId } = req.params;
+  
+  db.get(`
+    SELECT vc.*, 
+           u1.name as creator_name,
+           u2.name as participant_name
+    FROM video_calls vc
+    JOIN users u1 ON vc.creator_id = u1.id
+    JOIN users u2 ON vc.participant_id = u2.id
+    WHERE vc.id = ?
+  `, [callId], (err, call) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!call) return res.status(404).json({ error: 'Звонок не найден' });
+    res.json(call);
+  });
+});
+
+// Завершить звонок
+app.put('/api/video-calls/:callId/end', (req, res) => {
+  const { callId } = req.params;
+  
+  db.run(`
+    UPDATE video_calls SET status = 'ended' WHERE id = ?
+  `, [callId], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true });
+  });
+});
+
+// ========== API СООБЩЕНИЙ ==========
+
+// Получить список диалогов (с последним сообщением)
+app.get('/api/dialogs/:userId', (req, res) => {
+  const { userId } = req.params;
+  
+  db.all(`
+    SELECT 
+      u.id as user_id,
+      u.name as user_name,
+      u.instruments,
+      u.city,
+      (SELECT message FROM messages 
+       WHERE (from_user_id = u.id AND to_user_id = ?) 
+          OR (from_user_id = ? AND to_user_id = u.id)
+       ORDER BY created_at DESC LIMIT 1) as last_message,
+      (SELECT created_at FROM messages 
+       WHERE (from_user_id = u.id AND to_user_id = ?) 
+          OR (from_user_id = ? AND to_user_id = u.id)
+       ORDER BY created_at DESC LIMIT 1) as last_message_time,
+      (SELECT COUNT(*) FROM messages 
+       WHERE from_user_id = u.id AND to_user_id = ? AND is_read = 0) as unread_count
+    FROM users u
+    WHERE u.id IN (
+      SELECT DISTINCT 
+        CASE 
+          WHEN from_user_id = ? THEN to_user_id
+          ELSE from_user_id
+        END as other_user
+      FROM messages
+      WHERE from_user_id = ? OR to_user_id = ?
+    )
+    ORDER BY last_message_time DESC
+  `, [userId, userId, userId, userId, userId, userId, userId, userId], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+// Получить сообщения с конкретным пользователем
+app.get('/api/messages/:userId/:otherUserId', (req, res) => {
+  const { userId, otherUserId } = req.params;
+  
+  db.all(`
+    SELECT * FROM messages
+    WHERE (from_user_id = ? AND to_user_id = ?)
+       OR (from_user_id = ? AND to_user_id = ?)
+    ORDER BY created_at ASC
+  `, [userId, otherUserId, otherUserId, userId], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    
+    // Отмечаем сообщения как прочитанные
+    db.run(`
+      UPDATE messages 
+      SET is_read = 1 
+      WHERE from_user_id = ? AND to_user_id = ?
+    `, [otherUserId, userId]);
+    
+    res.json(rows || []);
+  });
+});
+
+// Отправить сообщение
+app.post('/api/messages', (req, res) => {
+  const { from_user_id, to_user_id, message } = req.body;
+  
+  if (!from_user_id || !to_user_id || !message || !message.trim()) {
+    return res.status(400).json({ error: 'Не все поля заполнены' });
+  }
+  
+  db.run(`
+    INSERT INTO messages (from_user_id, to_user_id, message, created_at, is_read)
+    VALUES (?, ?, ?, ?, 0)
+  `, [from_user_id, to_user_id, message.trim(), Date.now()], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    
+    db.get(`
+      SELECT m.*, u.name as from_user_name
+      FROM messages m
+      JOIN users u ON m.from_user_id = u.id
+      WHERE m.id = ?
+    `, [this.lastID], (err, msg) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(msg);
+    });
   });
 });
 

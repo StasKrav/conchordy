@@ -128,12 +128,8 @@ function getUserPosts(userId, includeDeleted = false) {
 }
 
 function sendMessageToAuthor(authorId, authorName, message) {
-  console.log(
-    `📨 Сообщение от ${currentUser.name} для ${authorName}: ${message}`,
-  );
-  alert(
-    `Сообщение отправлено!\n\nКому: ${authorName}\nСообщение: ${message}\n\n(в реальном приложении здесь будет отправка на сервер и уведомление автору)`,
-  );
+  // Отправляем сообщение в реальный чат
+  sendChatMessage(authorId, message);
 }
 
 // ========== UI КОМПОНЕНТЫ ==========
@@ -167,7 +163,7 @@ function getBadgeHTML(type) {
 async function startApp() {
   await initStorage();
 
-  const savedUserId = localStorage.getItem("backstage_current_user");
+  const savedUserId = localStorage.getItem('backstage_current_user');
   if (savedUserId) {
     try {
       const parsedUser = JSON.parse(savedUserId);
@@ -176,6 +172,16 @@ async function startApp() {
         currentUser = existingUser;
         await loadFollowing();
         renderMainApp();
+        
+        // Проверяем, не перешли ли по ссылке на звонок
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomId = urlParams.get('room');
+        if (roomId && roomId.startsWith('call_')) {
+          // Открываем видео-комнату через 1 секунду после загрузки
+          setTimeout(() => {
+            startVideoLesson(roomId, false, null, null);
+          }, 1000);
+        }
         return;
       }
     } catch (e) {}

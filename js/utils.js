@@ -80,16 +80,24 @@ function showChatModal(authorId, authorName) {
   const modal = document.createElement("div");
   modal.className = "chat-modal";
   modal.innerHTML = `
-            <div class="chat-modal-card">
-              <h3 style="margin-bottom: 8px;">Сообщение для ${escapeHtml(authorName)}</h3>
-              <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">Ваше сообщение будет отправлено автору объявления</p>
-              <textarea id="chatMessage" rows="4" placeholder="Напишите своё предложение, вопрос или приглашение..."></textarea>
-              <div style="display: flex; gap: 12px; margin-top: 12px;">
-                <button id="sendChatBtn" class="btn-primary" style="flex:1;">Отправить</button>
-                <button id="cancelChatBtn" class="btn-secondary" style="flex:1;">Отмена</button>
-              </div>
-            </div>
-          `;
+    <div class="chat-modal-card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <h3 style="margin: 0;">${escapeHtml(authorName)}</h3>
+        <div style="display: flex; gap: 8px;">
+          <button id="startVideoCallBtn" class="btn-secondary" style="padding: 6px 12px; font-size: 12px;">
+            <i class="fa-regular fa-video"></i> Звонок
+          </button>
+          <button id="closeChatBtn" style="background: none; border: none; font-size: 20px; cursor: pointer;">&times;</button>
+        </div>
+      </div>
+      <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">Ваше сообщение будет отправлено автору объявления</p>
+      <textarea id="chatMessage" rows="4" placeholder="Напишите своё предложение, вопрос или приглашение..."></textarea>
+      <div style="display: flex; gap: 12px; margin-top: 12px;">
+        <button id="sendChatBtn" class="btn-primary" style="flex:1;">Отправить</button>
+        <button id="cancelChatBtn" class="btn-secondary" style="flex:1;">Отмена</button>
+      </div>
+    </div>
+  `;
   document.body.appendChild(modal);
   modal.style.display = "flex";
 
@@ -105,6 +113,53 @@ function showChatModal(authorId, authorName) {
 
   document.getElementById("cancelChatBtn").onclick = () => {
     modal.remove();
+  };
+
+  document.getElementById("closeChatBtn").onclick = () => {
+    modal.remove();
+  };
+
+  // Кнопка видео-звонка
+  document.getElementById("startVideoCallBtn").onclick = async () => {
+    if (!currentUser) {
+      alert('Войдите в аккаунт');
+      return;
+    }
+    
+    // Проверяем, что не звоним сами себе
+    if (authorId === currentUser.id) {
+      alert('Нельзя позвонить самому себе');
+      return;
+    }
+    
+    const callId = 'call_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+    
+    try {
+      const response = await fetch(`${API_BASE}/video-calls`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: callId,
+          creator_id: currentUser.id,
+          participant_id: authorId
+        })
+      });
+      
+      if (response.ok) {
+        // Отправляем сообщение с ссылкой
+        const link = `${window.location.origin}/?room=${callId}`;
+        sendMessageToAuthor(authorId, authorName, `Присоединяйся к видео-звонку: ${link}`);
+        
+        // Открываем видео-комнату для создателя
+        startVideoLesson(callId, true, authorName, null);
+        modal.remove();
+      } else {
+        alert('Ошибка создания звонка');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Ошибка соединения');
+    }
   };
 
   modal.addEventListener("click", (e) => {
