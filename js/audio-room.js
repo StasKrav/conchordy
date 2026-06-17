@@ -494,7 +494,7 @@ function addRoomMessageToUI(message, container = null, scroll = true) {
   msgDiv.className = `room-chat-message ${isSystem ? "system" : ""}`;
   msgDiv.innerHTML = isSystem
     ? `
-      <div>📢 ${escapeHtml(message.message)}</div>
+      <div>${escapeHtml(message.message)}</div>
     `
     : `
       <span class="author">${escapeHtml(message.user_name || "Участник")}</span>
@@ -515,8 +515,8 @@ function addDonationToUI(donation, container = null, scroll = true) {
   const div = document.createElement("div");
   div.className = "room-chat-message donation";
   div.innerHTML = `
-      🔥 <strong>${escapeHtml(donation.from_user_name || "Кто-то")}</strong> поддержал автора на <strong>${donation.amount} ₽</strong>
-      ${donation.message ? `<div style="margin-top: 4px; font-size: 12px;">💬 "${escapeHtml(donation.message)}"</div>` : ""}
+      <strong>${escapeHtml(donation.from_user_name || "Кто-то")}</strong> поддержал автора на <strong>${donation.amount} ₽</strong>
+      ${donation.message ? `<div style="margin-top: 4px; font-size: 12px;">"${escapeHtml(donation.message)}"</div>` : ""}
     `;
   chatContainer.appendChild(div);
   if (scroll) chatContainer.scrollTop = chatContainer.scrollHeight;

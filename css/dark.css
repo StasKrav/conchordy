@@ -478,3 +478,62 @@
 [data-theme="dark"] .comment-modal-submit:hover {
   background: var(--accent-dark);
 }
+
+/* ===== ТЁМНАЯ ТЕМА: ПОДСКАЗКА "КАК ЭТО РАБОТАЕТ" ===== */
+
+[data-theme="dark"] .timeline-empty {
+  background: var(--hover-bg);
+  border-color: var(--border-light);
+}
+
+[data-theme="dark"] .timeline-empty-icon {
+  color: var(--accent);
+}
+
+[data-theme="dark"] .timeline-empty-title {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .step-item {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .step-item strong {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .step-item svg {
+  color: var(--accent);
+  background: rgba(217, 108, 74, 0.15);
+}
+
+[data-theme="dark"] .step-item svg path {
+  stroke: var(--accent);
+}
+
+/* ===== ТЁМНАЯ ТЕМА: ДОНАТЫ В КОМНАТЕ ===== */
+
+[data-theme="dark"] .room-chat-message.donation {
+  background: linear-gradient(135deg, rgba(245, 176, 66, 0.15), rgba(232, 146, 42, 0.1));
+  /* border-left: 3px solid #f5b042; */
+}
+
+[data-theme="dark"] .room-chat-message.donation strong {
+  color: #f5b042;
+}
+
+[data-theme="dark"] .room-chat-message.donation .author {
+  color: var(--accent);
+}
+
+[data-theme="dark"] .room-chat-message.donation .time {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .room-chat-message.donation div {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .room-chat-message.donation div strong {
+  color: #f5b042;
+}
