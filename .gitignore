@@ -31,3 +31,5 @@ Thumbs.db
 # Временные файлы
 *.tmp
 *.temp
+
+package-lock.json
