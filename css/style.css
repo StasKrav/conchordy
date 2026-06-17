@@ -1816,4 +1816,23 @@ textarea#restoreCodeInput {
   background: rgba(47, 107, 71, 0.15);
   transform: scale(1.02);
 }
+/*== конец ==*/
 
+/*== КНОПКА ВИДЕО-ЗВОНКА В МОДАЛКЕ ==*/
+.video-call-btn-small {
+  background: transparent;
+  color: var(--accent);
+  border: 1.5px solid var(--accent);
+  padding: 4px 12px;
+  border-radius: 40px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: 0.2s;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.video-call-btn-small:hover {
+  background: rgba(217, 108, 74, 0.08);
+}

@@ -84,8 +84,8 @@ function showChatModal(authorId, authorName) {
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
         <h3 style="margin: 0;">${escapeHtml(authorName)}</h3>
         <div style="display: flex; gap: 8px;">
-          <button id="startVideoCallBtn" class="btn-secondary" style="padding: 6px 12px; font-size: 12px;">
-            <i class="fa-regular fa-video"></i> Звонок
+          <button id="startVideoCallBtn" class="video-call-btn-small">
+            Видео-звонок
           </button>
           <button id="closeChatBtn" style="background: none; border: none; font-size: 20px; cursor: pointer;">&times;</button>
         </div>
