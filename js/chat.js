@@ -136,17 +136,17 @@ function renderChatRoom(container, user) {
         body: JSON.stringify({
           id: callId,
           creator_id: currentUser.id,
-          participant_id: user.id
+          participant_id: currentChatUserId
         })
       });
       
       if (response.ok) {
-        // Отправляем ссылку в чат
-        const link = `${window.location.origin}/index.html?room=${callId}`;
-        await sendChatMessage(user.id, `Присоединяйся к видео-звонку: ${link}`);
+        // ✅ ОТПРАВЛЯЕМ СПЕЦИАЛЬНОЕ СООБЩЕНИЕ С /join/
+        const inviteMessage = `/join/${callId}`;
+        await sendChatMessage(currentChatUserId, inviteMessage);
         
-        // Открываем видео-комнату
-        startVideoLesson(callId, true, user.name, null);
+        // Открываем видео-комнату для создателя
+        startVideoLesson(callId, true, null, null);
       }
     } catch (e) {
       console.error(e);
@@ -211,11 +211,51 @@ function addMessageToUI(msg, container) {
   const isSent = msg.from_user_id === currentUser.id;
   const div = document.createElement('div');
   div.className = `chat-message ${isSent ? 'sent' : 'received'}`;
-  div.innerHTML = `
-    ${escapeHtml(msg.message)}
-    <span class="chat-message-time">${formatMessageTime(msg.created_at)}</span>
-  `;
+  
+  // Проверяем, есть ли в сообщении ссылка на видео-звонок
+  const videoCallMatch = msg.message.match(/\/join\/(call_[a-zA-Z0-9_]+)/);
+  
+  if (videoCallMatch) {
+    const roomId = videoCallMatch[1];
+    div.innerHTML = `
+      <div class="video-invite-card">
+        <div class="video-invite-icon">
+        <svg width="60" height="38" viewBox="0 0 608 384" xmlns="http://www.w3.org/2000/svg">
+        <path d="M80,80 L80,304" stroke="#777777" stroke-width="32" fill="none" stroke-linecap="round"/>
+        <path d="M80,80 L176,112" stroke="#777777" stroke-width="32" fill="none" stroke-linecap="round"/>
+        <path d="M80,304 L176,272" stroke="#777777" stroke-width="32" fill="none" stroke-linecap="round"/>
+        <path d="M240,80 L240,304" stroke="#777777" stroke-width="32" fill="none" stroke-linecap="round"/>
+        <path d="M240,304 L528,304" stroke="#777777" stroke-width="32" fill="none" stroke-linecap="round"/>
+        <path d="M240,80 L528,80" stroke="#777777" stroke-width="32" fill="none" stroke-linecap="round"/>
+        <path d="M528,80 L528,304" stroke="#777777" stroke-width="32" fill="none" stroke-linecap="round"/>
+        <path d="M176,112 L176,272" stroke="#777777" stroke-width="32" fill="none" stroke-linecap="round"/>
+        
+        </svg>
+        </div>
+        <div class="video-invite-text">Видео-звонок</div>
+        <button class="video-join-btn" data-room-id="${roomId}">
+          Присоединиться
+        </button>
+        <span class="chat-message-time">${formatMessageTime(msg.created_at)}</span>
+      </div>
+    `;
+  } else {
+    div.innerHTML = `
+      ${escapeHtml(msg.message)}
+      <span class="chat-message-time">${formatMessageTime(msg.created_at)}</span>
+    `;
+  }
+  
   container.appendChild(div);
+  
+  // Обработчик для кнопки "Присоединиться"
+  const joinBtn = div.querySelector('.video-join-btn');
+  if (joinBtn) {
+    joinBtn.addEventListener('click', () => {
+      const roomId = joinBtn.getAttribute('data-room-id');
+      startVideoLesson(roomId, false, null, null);
+    });
+  }
 }
 
 // Обновить список диалогов
