@@ -194,41 +194,7 @@ async function initVideoCall(roomId, isTeacher) {
     videoLocalStream = null;
   }
 
-  videoPeer = new SimplePeer({
-    initiator: isTeacher,
-    trickle: false
-  });
-
-  videoPeer.on('signal', (signalData) => {
-    console.log('📡 Сигнал:', signalData.type, isTeacher ? '(учитель)' : '(ученик)');
-    if (currentSocket) {
-      console.log('📤 Отправляем offer на сервер');
-      currentSocket.emit('webrtc-offer', {
-        roomId: roomId,
-        signal: signalData,
-        targetId: null
-      });
-    } else {
-      console.error('❌ currentSocket = null!');
-    }
-  });
-
-  videoPeer.on('stream', (stream) => {
-    console.log('📹 Поток получен!');
-    const remoteVideo = document.getElementById('remoteVideo');
-    if (remoteVideo) {
-      remoteVideo.srcObject = stream;
-      remoteVideo.play();
-      const label = document.getElementById('remoteLabel');
-      if (label) label.textContent = 'Собеседник';
-    }
-  });
-
-  videoPeer.on('error', (err) => {
-    console.error('Peer error:', err);
-  });
-
-  // Пытаемся получить камеру
+  // ⭐ ПОЛУЧАЕМ КАМЕРУ ДО СОЗДАНИЯ ПИРА
   try {
     videoLocalStream = await navigator.mediaDevices.getUserMedia({ 
       audio: true, 
@@ -259,6 +225,50 @@ async function initVideoCall(roomId, isTeacher) {
     }
   }
 
+  // ⭐ УЧЕНИК ВСЕГДА ИНИЦИАТОР, УЧИТЕЛЬ ОТВЕЧАЮЩИЙ
+  // Ученик создаёт offer → учитель получает offer → учитель отвечает answer
+  const amInitiator = !isTeacher;  // ученик инициирует соединение
+
+  videoPeer = new SimplePeer({
+    initiator: amInitiator,
+    trickle: false,
+    stream: videoLocalStream
+  });
+
+  videoPeer.on('signal', (signalData) => {
+    console.log('📡 Сигнал:', signalData.type, isTeacher ? '(учитель)' : '(ученик)');
+    if (currentSocket) {
+      const eventType = signalData.type === 'offer' ? 'webrtc-offer' : 'webrtc-answer';
+      console.log(`📤 Отправляем ${signalData.type} на сервер`);
+      currentSocket.emit(eventType, {
+        roomId: roomId,
+        signal: signalData,
+        targetId: null
+      });
+    } else {
+      console.error('❌ currentSocket = null!');
+    }
+  });
+
+  videoPeer.on('stream', (stream) => {
+    console.log('📹 Поток получен!');
+    const remoteVideo = document.getElementById('remoteVideo');
+    if (remoteVideo) {
+      remoteVideo.srcObject = stream;
+      remoteVideo.play();
+      const label = document.getElementById('remoteLabel');
+      if (label) label.textContent = 'Собеседник';
+    }
+  });
+
+  videoPeer.on('error', (err) => {
+    console.error('Peer error:', err);
+  });
+
+  videoPeer.on('connect', () => {
+    console.log('✅ WebRTC соединение установлено!');
+  });
+
   if (currentSocket) {
     currentSocket.off('webrtc-offer');
     currentSocket.off('webrtc-answer');
@@ -267,19 +277,6 @@ async function initVideoCall(roomId, isTeacher) {
       console.log('📡 Получен offer', isTeacher ? '(учитель)' : '(ученик)');
       if (videoPeer) {
         videoPeer.signal(data.signal);
-        
-        // ✅ Отправляем поток учителя, если ещё не отправлен
-        if (isTeacher && videoLocalStream) {
-          const senders = videoPeer._pc?.getSenders?.() || [];
-          const existingKinds = senders.map(s => s.track?.kind).filter(Boolean);
-          
-          videoLocalStream.getTracks().forEach(track => {
-            if (!existingKinds.includes(track.kind)) {
-              videoPeer.addTrack(track, videoLocalStream);
-              console.log('📤 Добавлен трек:', track.kind);
-            }
-          });
-        }
       }
     });
     

@@ -76,6 +76,13 @@ io.on('connection', (socket) => {
     socket.to(roomId).emit('webrtc-ice-candidate', { candidate, from: socket.userId });
   });
   
+  // ⭐ Ученик запрашивает offer — пересылаем учителю
+  socket.on('request-offer', ({ roomId }) => {
+    console.log(`📡 Ученик ${socket.userId} запросил offer в комнате ${roomId}`);
+    // Отправляем событие всем в комнате, кроме отправителя
+    socket.to(roomId).emit('student-requested-offer', { from: socket.userId });
+  });
+  
   // Запрос на трансляцию (хост начинает вещать)
   socket.on('start-broadcast', (roomId) => {
     console.log(`🎙️ Хост ${socket.userId} начал трансляцию в комнате ${roomId}`);
