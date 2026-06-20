@@ -94,6 +94,11 @@ io.on('connection', (socket) => {
     console.log(`🔇 Хост ${socket.userId} остановил трансляцию в комнате ${roomId}`);
     socket.to(roomId).emit('broadcast-stopped');
   });
+
+  socket.on('request-offer', ({ roomId }) => {
+    console.log(`📡 Ученик ${socket.userId} запросил offer в комнате ${roomId}`);
+    socket.to(roomId).emit('student-requested-offer', { from: socket.userId });
+  });
 });
 
 // Запускаем проверку каждые 5 минут

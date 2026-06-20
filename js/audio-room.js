@@ -127,10 +127,24 @@ function initRoomSocket(roomId, isHost) {
   currentSocket.on("connect", () => {
     console.log("🔗 WebSocket подключён");
     currentSocket.emit("join-room", roomId, currentUser.id, currentUser.name);
+    
+    // ✅ Если слушатель, запрашиваем offer у хоста
+    if (!isHost && currentRoom) {
+      console.log("📡 Запрашиваем offer у хоста");
+      currentSocket.emit("request-offer", { roomId: roomId });
+    }
   });
 
   // Обработка сигналов WebRTC
   currentSocket.on("webrtc-offer", async (data) => {
+    // Если хост получает offer от слушателя
+    if (isHost && data.from !== currentUser.id) {
+      console.log(`📡 Хост получил offer от ${data.from}, создаём peer`);
+      // Создаём peer для этого слушателя
+      const listenerId = data.from;
+      const listenerName = users.find(u => u.id === listenerId)?.name || 'Слушатель';
+      createPeerForListener(listenerId, listenerName);
+    }
     if (!isHost && data.targetId === currentUser.id) {
       console.log("📡 Получен offer, создаём answer");
 
@@ -174,13 +188,21 @@ function initRoomSocket(roomId, isHost) {
     }
   });
 
-  currentSocket.on("broadcast-started", () => {
-    if (!isHost) {
-      console.log("🎙️ Трансляция начата, соединяемся...");
-      joinBroadcast(currentRoom.host_id);
+  currentSocket.on('student-requested-offer', (data) => {
+    if (isHost && isBroadcasting) {
+      console.log(`👂 Ученик ${data.from} запросил offer, отправляем поток`);
+      createPeerForListener(data.from, 'Слушатель');
     }
   });
 
+  currentSocket.on("broadcast-started", () => {
+    if (!isHost) {
+      console.log("🎙️ Трансляция начата, соединяемся...");
+      // ✅ Создаём peer и отправляем offer хосту
+      createListenerPeer(currentRoom.host_id);
+    }
+  });
+  
   currentSocket.on("broadcast-stopped", () => {
     if (!isHost) {
       console.log("🔇 Трансляция остановлена");
@@ -222,6 +244,47 @@ function initRoomSocket(roomId, isHost) {
     addSystemMessageToUI(`${data.userName} покинул эфир`);
     updateRoomListenersCount();
   });
+}
+
+// Слушатель создаёт peer и отправляет offer хосту
+function createListenerPeer(hostId) {
+  console.log(`🎧 Слушатель ${currentUser.name} создаёт peer для хоста ${hostId}`);
+
+  const peer = new SimplePeer({
+    initiator: true,  // Слушатель инициирует соединение
+    trickle: false
+  });
+
+  peer.on("signal", (signalData) => {
+    console.log('📡 Слушатель отправляет сигнал:', signalData.type);
+    if (currentSocket && currentRoom) {
+      currentSocket.emit("webrtc-offer", {
+        roomId: currentRoom.id,
+        signal: signalData,
+        targetId: hostId
+      });
+    }
+  });
+
+  peer.on("stream", (stream) => {
+    console.log("🎧 Аудиопоток получен!");
+    const audio = new Audio();
+    audio.srcObject = stream;
+    audio.autoplay = true;
+    audio.volume = 0.8;
+
+    const audioStatus = document.getElementById("audioStatus");
+    if (audioStatus) {
+      audioStatus.innerHTML = '<i class="fa-solid fa-headphones"></i> 🎵 Трансляция идёт';
+      audioStatus.style.color = "#2f6b47";
+    }
+  });
+
+  peer.on("error", (err) => {
+    console.error("Ошибка peer:", err);
+  });
+
+  peerInstances.set("listener", peer);
 }
 
 // Рендер страницы комнаты
@@ -736,14 +799,7 @@ async function startBroadcast(roomId) {
     return;
   }
 
-  // Если уже идёт трансляция, не создаём новую
-    if (isBroadcasting && localStream) {
-      console.log('⚠️ Трансляция уже идёт');
-      return;
-    }
-
   try {
-    // Если уже есть поток, но он остановлен (пауза) — создаём новый
     if (localStream) {
       localStream.getTracks().forEach((track) => track.stop());
       localStream = null;
@@ -752,50 +808,28 @@ async function startBroadcast(roomId) {
     localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     console.log("🎙️ Микрофон получен");
 
-    // Если комната ещё не в статусе LIVE, переводим её
     if (currentRoom && currentRoom.status !== "live") {
       await fetch(`${API_BASE}/live-rooms/${roomId}/start`, { method: "PUT" });
       currentRoom.status = "live";
     }
 
+    isBroadcasting = true;
+
+    // ✅ Отправляем сигнал всем в комнате, что трансляция началась
     if (currentSocket) {
       currentSocket.emit("start-broadcast", roomId);
     }
 
-    isBroadcasting = true;
-
-    // Обновляем UI — ищем кнопки заново при каждом вызове
+    // ✅ Обновляем UI
     const startBtn = document.getElementById("startBroadcastBtn");
     const pauseBtn = document.getElementById("pauseBroadcastBtn");
-
     if (startBtn) startBtn.disabled = true;
     if (pauseBtn) pauseBtn.disabled = false;
 
-    const statusDiv = document.querySelector(".room-player-status");
-    if (statusDiv) {
-      statusDiv.innerHTML = '<span class="pulse-dot"></span>Эфир идёт';
-      statusDiv.style.color = "#c2410c";
-    }
-
-    // Обновляем точку
-      const pulseDot = document.querySelector('.pulse-dot');
-        if (pulseDot) {
-          pulseDot.classList.remove('inactive');  // ✅ убираем inactive
-          pulseDot.classList.add('active');       // ✅ добавляем active
-        }
-    
-      // Найти элемент статуса
-      const statusEl = document.querySelector('#broadcastStatus');
-      if (statusEl) {
-        statusEl.textContent = 'Эфир идёт';
-        statusEl.style.color = '#c2410c';
-      }
-
-    const audioStatus = document.getElementById("audioStatus");
-    if (audioStatus) {
-      audioStatus.innerHTML =
-        '<i class="fa-solid fa-headphones"></i> 🎵 Трансляция идёт';
-      audioStatus.style.color = "#2f6b47";
+    const statusEl = document.querySelector('#broadcastStatus');
+    if (statusEl) {
+      statusEl.textContent = 'Эфир идёт';
+      statusEl.style.color = '#c2410c';
     }
 
     console.log("🎙️ Трансляция активна");
@@ -887,22 +921,26 @@ async function endBroadcast() {
 
 // Создать peer-соединение для слушателя (вызывается у хоста)
 function createPeerForListener(listenerId, listenerName) {
-  if (!localStream || !isBroadcasting) return;
+  if (!localStream || !isBroadcasting) {
+    console.warn('⚠️ Нет потока или трансляция не активна');
+    return;
+  }
 
-  console.log(`🔗 Создаём peer для слушателя ${listenerName} (${listenerId})`);
+  console.log(`🔗 Хост создаёт peer для слушателя ${listenerName} (${listenerId})`);
 
   const peer = new SimplePeer({
-    initiator: true,
+    initiator: false,  // Хост НЕ инициирует — ждёт offer от слушателя
     stream: localStream,
-    trickle: false,
+    trickle: false
   });
 
   peer.on("signal", (signalData) => {
+    console.log('📡 Хост отправляет сигнал:', signalData.type, 'для', listenerId);
     if (currentSocket && currentRoom) {
-      currentSocket.emit("webrtc-offer", {
+      currentSocket.emit("webrtc-answer", {
         roomId: currentRoom.id,
         signal: signalData,
-        targetId: listenerId,
+        targetId: listenerId
       });
     }
   });
