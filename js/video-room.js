@@ -99,23 +99,21 @@ async function startVideoLesson(roomId, isTeacher, teacherName, studentName) {
       </div>
       
       <div class="video-panel">
-        <div class="video-wrapper" id="remoteVideoWrapper">
+        <!-- Удалённое видео (собеседник) — большой -->
+        <div class="video-wrapper-remote" id="remoteVideoWrapper">
           <video id="remoteVideo" autoplay playsinline></video>
           <div class="video-label" id="remoteLabel">Собеседник</div>
           <button class="video-fullscreen-btn" id="remoteFullscreenBtn">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
             </svg>
           </button>
         </div>
-        <div class="video-wrapper" id="localVideoWrapper">
+        
+        <!-- Локальное видео (вы) — маленькое в углу -->
+        <div class="video-wrapper-local" id="localVideoWrapper">
           <video id="localVideo" autoplay playsinline muted></video>
           <div class="video-label">Вы</div>
-          <button class="video-fullscreen-btn" id="localFullscreenBtn">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
-            </svg>
-          </button>
         </div>
       </div>
       
@@ -151,6 +149,45 @@ async function startVideoLesson(roomId, isTeacher, teacherName, studentName) {
   `;
   
   setActiveScreen('room');
+
+  
+  // ===== ПЕРЕТАСКИВАНИЕ ЛОКАЛЬНОГО ВИДЕО =====
+  const localWrapper = document.getElementById('localVideoWrapper');
+  let isDragging = false;
+  let startX, startY, origX, origY;
+  
+  if (localWrapper) {
+    // Начало перетаскивания
+    localWrapper.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      const rect = localWrapper.getBoundingClientRect();
+      origX = rect.left;
+      origY = rect.top;
+      localWrapper.style.cursor = 'grabbing';
+      e.preventDefault();
+    });
+  
+    // Перемещение
+    document.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      localWrapper.style.left = (origX + dx) + 'px';
+      localWrapper.style.top = (origY + dy) + 'px';
+      localWrapper.style.right = 'auto';
+      localWrapper.style.bottom = 'auto';
+    });
+  
+    // Завершение перетаскивания
+    document.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        localWrapper.style.cursor = 'default';
+      }
+    });
+  }
   
   // Запускаем WebRTC
   await initVideoCall(roomId, isTeacher);
@@ -172,20 +209,30 @@ async function startVideoLesson(roomId, isTeacher, teacherName, studentName) {
   document.getElementById('endLessonBtn').onclick = endVideoLesson;
   
   // Полноэкранный режим
-  document.getElementById('remoteFullscreenBtn').onclick = () => {
-    const wrapper = document.getElementById('remoteVideoWrapper');
-    if (wrapper.requestFullscreen) wrapper.requestFullscreen();
-  };
-  document.getElementById('localFullscreenBtn').onclick = () => {
-    const wrapper = document.getElementById('localVideoWrapper');
-    if (wrapper.requestFullscreen) wrapper.requestFullscreen();
-  };
+  const remoteFullscreenBtn = document.getElementById('remoteFullscreenBtn');
+  if (remoteFullscreenBtn) {
+    remoteFullscreenBtn.onclick = () => {
+      const wrapper = document.getElementById('remoteVideoWrapper');
+      if (wrapper && wrapper.requestFullscreen) wrapper.requestFullscreen();
+    };
+  }
   
-  document.getElementById('backFromVideoBtn').onclick = () => {
-    if (confirm('Завершить звонок?')) {
-      endVideoLesson();
-    }
-  };
+  const localFullscreenBtn = document.getElementById('localFullscreenBtn');
+  if (localFullscreenBtn) {
+    localFullscreenBtn.onclick = () => {
+      const wrapper = document.getElementById('localVideoWrapper');
+      if (wrapper && wrapper.requestFullscreen) wrapper.requestFullscreen();
+    };
+  }
+  
+  const backBtn = document.getElementById('backFromVideoBtn');
+  if (backBtn) {
+    backBtn.onclick = () => {
+      if (confirm('Завершить звонок?')) {
+        endVideoLesson();
+      }
+    };
+  }
 }
 
 async function initVideoCall(roomId, isTeacher) {
