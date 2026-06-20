@@ -81,6 +81,12 @@ body {
 .hamburger:hover {
   background: var(--border-light);
 }
+.hamburger:hover svg {
+  transform: rotate(90deg);
+}
+.hamburger svg {
+  transition: transform 0.2s ease;
+}
 
 .main-content {
   padding: 20px 16px 90px;

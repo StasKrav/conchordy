@@ -59,33 +59,29 @@ function showVideoLessonModal(teacherId, teacherName, price) {
 
 // Начать видео-урок
 async function startVideoLesson(roomId, isTeacher, teacherName, studentName) {
-  // Если roomId начинается с 'call_', пробуем получить данные из БД
-  if (roomId.startsWith('call_')) {
-    try {
-      const response = await fetch(`${API_BASE}/video-calls/${roomId}`);
-      if (response.ok) {
-        const call = await response.json();
-        // Определяем роли
-        const isCreator = call.creator_id === currentUser.id;
-        const otherUser = isCreator ? call.participant_name : call.creator_name;
-        // Передаём правильные имена
-        if (isCreator) {
-          teacherName = otherUser;
-          studentName = null;
-        } else {
-          teacherName = call.creator_name;
-          studentName = null;
-        }
-        isTeacher = isCreator;
-      }
-    } catch (e) {
-      console.error('Ошибка загрузки звонка:', e);
-    }
+  // ========== ПОДКЛЮЧАЕМ WEBSOCKET ==========
+  if (!currentSocket) {
+    console.log('🔌 Подключаем WebSocket для видео-комнаты...');
+    currentSocket = io();
+    
+    // ✅ Ждём подключения
+    await new Promise((resolve) => {
+      currentSocket.on('connect', () => {
+        console.log('🔗 WebSocket подключён');
+        currentSocket.emit('join-room', roomId, currentUser.id, currentUser.name);
+        console.log(`📡 Присоединился к комнате ${roomId}`);
+        resolve();
+      });
+    });
+  } else {
+    console.log(`📡 Присоединяемся к комнате ${roomId}`);
+    currentSocket.emit('join-room', roomId, currentUser.id, currentUser.name);
   }
-  
+
   // Скрываем кнопку создания поста
-  const fab = document.getElementById('fabBtn');
-    if (fab) fab.style.display = 'none';
+  const fab = document.getElementById("fabBtn");
+  if (fab) fab.style.display = "none";
+  
   const container = document.getElementById('roomScreen');
   if (!container) return;
   
@@ -98,14 +94,14 @@ async function startVideoLesson(roomId, isTeacher, teacherName, studentName) {
           </svg>
           Назад
         </button>
-        <div class="video-room-title">${isTeacher ? 'Ваш урок' : 'Урок с ' + escapeHtml(teacherName)}</div>
+        <div class="video-room-title">${isTeacher ? 'Видео-звонок (вы создатель)' : 'Видео-звонок'}</div>
         <div class="video-room-timer" id="videoTimer">00:00</div>
       </div>
       
       <div class="video-panel">
         <div class="video-wrapper" id="remoteVideoWrapper">
           <video id="remoteVideo" autoplay playsinline></video>
-          <div class="video-label">${isTeacher ? escapeHtml(studentName || 'Ученик') : escapeHtml(teacherName)}</div>
+          <div class="video-label" id="remoteLabel">Собеседник</div>
           <button class="video-fullscreen-btn" id="remoteFullscreenBtn">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
@@ -114,7 +110,7 @@ async function startVideoLesson(roomId, isTeacher, teacherName, studentName) {
         </div>
         <div class="video-wrapper" id="localVideoWrapper">
           <video id="localVideo" autoplay playsinline muted></video>
-          <div class="video-label">${isTeacher ? 'Вы (учитель)' : 'Вы'}</div>
+          <div class="video-label">Вы</div>
           <button class="video-fullscreen-btn" id="localFullscreenBtn">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
@@ -124,27 +120,27 @@ async function startVideoLesson(roomId, isTeacher, teacherName, studentName) {
       </div>
       
       <div class="video-controls">
-        <button class="video-control-btn" id="toggleMicBtn" title="Микрофон">
+        <button class="video-control-btn" id="toggleMicBtn">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
             <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
             <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
             <path d="M12 19v3"/>
           </svg>
         </button>
-        <button class="video-control-btn" id="toggleVideoBtn" title="Камера">
+        <button class="video-control-btn" id="toggleVideoBtn">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
             <path d="M23 7l-7 5 7 5V7z"/>
             <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
           </svg>
         </button>
-        <button class="video-control-btn" id="shareScreenBtn" title="Экран">
+        <button class="video-control-btn" id="shareScreenBtn">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
             <rect x="2" y="3" width="20" height="14" rx="2"/>
             <line x1="8" y1="21" x2="16" y2="21"/>
             <line x1="12" y1="17" x2="12" y2="21"/>
           </svg>
         </button>
-        <button class="video-control-btn danger" id="endLessonBtn" title="Завершить">
+        <button class="video-control-btn danger" id="endLessonBtn">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
             <circle cx="12" cy="12" r="10"/>
             <line x1="8" y1="12" x2="16" y2="12"/>
@@ -156,7 +152,7 @@ async function startVideoLesson(roomId, isTeacher, teacherName, studentName) {
   
   setActiveScreen('room');
   
-  // Инициализация WebRTC с видео
+  // Запускаем WebRTC
   await initVideoCall(roomId, isTeacher);
   
   // Таймер урока
@@ -186,53 +182,116 @@ async function startVideoLesson(roomId, isTeacher, teacherName, studentName) {
   };
   
   document.getElementById('backFromVideoBtn').onclick = () => {
-    if (confirm('Завершить урок?')) {
+    if (confirm('Завершить звонок?')) {
       endVideoLesson();
     }
   };
 }
 
 async function initVideoCall(roomId, isTeacher) {
+  if (videoLocalStream) {
+    videoLocalStream.getTracks().forEach(track => track.stop());
+    videoLocalStream = null;
+  }
+
+  videoPeer = new SimplePeer({
+    initiator: isTeacher,
+    trickle: false
+  });
+
+  videoPeer.on('signal', (signalData) => {
+    console.log('📡 Сигнал:', signalData.type, isTeacher ? '(учитель)' : '(ученик)');
+    if (currentSocket) {
+      console.log('📤 Отправляем offer на сервер');
+      currentSocket.emit('webrtc-offer', {
+        roomId: roomId,
+        signal: signalData,
+        targetId: null
+      });
+    } else {
+      console.error('❌ currentSocket = null!');
+    }
+  });
+
+  videoPeer.on('stream', (stream) => {
+    console.log('📹 Поток получен!');
+    const remoteVideo = document.getElementById('remoteVideo');
+    if (remoteVideo) {
+      remoteVideo.srcObject = stream;
+      remoteVideo.play();
+      const label = document.getElementById('remoteLabel');
+      if (label) label.textContent = 'Собеседник';
+    }
+  });
+
+  videoPeer.on('error', (err) => {
+    console.error('Peer error:', err);
+  });
+
+  // Пытаемся получить камеру
   try {
     videoLocalStream = await navigator.mediaDevices.getUserMedia({ 
       audio: true, 
-      video: { width: { ideal: 640 }, height: { ideal: 480 } }
+      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
     });
     
     const localVideo = document.getElementById('localVideo');
     if (localVideo) localVideo.srcObject = videoLocalStream;
     
-    videoPeer = new SimplePeer({
-      initiator: isTeacher,
-      stream: videoLocalStream,
-      trickle: false
-    });
+    console.log('🎥 Камера получена');
     
-    videoPeer.on('signal', (signalData) => {
-      if (currentSocket) {
-        currentSocket.emit('webrtc-offer', { roomId, signal: signalData });
+  } catch (e) {
+    console.warn('⚠️ Камера не доступна:', e.name);
+    try {
+      videoLocalStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const localVideo = document.getElementById('localVideo');
+      if (localVideo) {
+        localVideo.style.display = 'none';
+        const wrapper = document.getElementById('localVideoWrapper');
+        if (wrapper) {
+          const label = wrapper.querySelector('.video-label');
+          if (label) label.textContent = 'Вы (аудио)';
+        }
+      }
+      console.log('🎙️ Микрофон получен');
+    } catch (audioError) {
+      console.warn('⚠️ Микрофон тоже не доступен');
+    }
+  }
+
+  if (currentSocket) {
+    currentSocket.off('webrtc-offer');
+    currentSocket.off('webrtc-answer');
+    
+    currentSocket.on('webrtc-offer', (data) => {
+      console.log('📡 Получен offer', isTeacher ? '(учитель)' : '(ученик)');
+      if (videoPeer) {
+        videoPeer.signal(data.signal);
+        
+        // ✅ Отправляем поток учителя, если ещё не отправлен
+        if (isTeacher && videoLocalStream) {
+          const senders = videoPeer._pc?.getSenders?.() || [];
+          const existingKinds = senders.map(s => s.track?.kind).filter(Boolean);
+          
+          videoLocalStream.getTracks().forEach(track => {
+            if (!existingKinds.includes(track.kind)) {
+              videoPeer.addTrack(track, videoLocalStream);
+              console.log('📤 Добавлен трек:', track.kind);
+            }
+          });
+        }
       }
     });
     
-    videoPeer.on('stream', (stream) => {
-      const remoteVideo = document.getElementById('remoteVideo');
-      if (remoteVideo) remoteVideo.srcObject = stream;
-    });
-    
-    videoPeer.on('error', (err) => console.error('Peer error:', err));
-    
     currentSocket.on('webrtc-answer', (data) => {
-      if (videoPeer) videoPeer.signal(data.signal);
+      console.log('📡 Получен answer', isTeacher ? '(учитель)' : '(ученик)');
+      if (videoPeer) {
+        videoPeer.signal(data.signal);
+      }
     });
-    
-    currentSocket.on('webrtc-offer', (data) => {
-      if (videoPeer && !isTeacher) videoPeer.signal(data.signal);
-    });
-    
-  } catch (e) {
-    console.error('Ошибка доступа к камере:', e);
-    alert('Не удалось получить доступ к камере и микрофону');
   }
+  
+  console.log('🎥 Видео-звонок инициализирован', isTeacher ? '(учитель)' : '(ученик)');
 }
 
 function toggleMicrophone() {
@@ -276,8 +335,20 @@ async function shareScreen() {
 
 function endVideoLesson() {
   if (videoTimerInterval) clearInterval(videoTimerInterval);
-  if (videoLocalStream) videoLocalStream.getTracks().forEach(t => t.stop());
-  if (videoPeer) videoPeer.destroy();
+  
+  // Освобождаем все треки
+  if (videoLocalStream) {
+    videoLocalStream.getTracks().forEach(track => {
+      track.stop();
+      console.log('🔇 Трек остановлен:', track.kind);
+    });
+    videoLocalStream = null;
+  }
+  
+  if (videoPeer) {
+    videoPeer.destroy();
+    videoPeer = null;
+  }
   
   // Показываем кнопку создания поста
   const fab = document.getElementById('fabBtn');
@@ -288,24 +359,30 @@ function endVideoLesson() {
 }
 
 function showCreateVideoRoomModal() {
+  // Получаем список пользователей для выбора
+  const userOptions = users
+    .filter(u => u.id !== currentUser?.id)
+    .map(u => `<option value="${u.id}">${escapeHtml(u.name)}</option>`)
+    .join('');
+  
   const modalHtml = `
     <div class="modal" id="createVideoRoomModal" style="display: flex;">
       <div class="modal-card">
-        <h3>Создать видео-комнату</h3>
+        <h3>Видео-звонок</h3>
         <div class="form-group">
           <label>Название</label>
           <input type="text" id="videoRoomTitle" placeholder="например: Урок гитары">
         </div>
         <div class="form-group">
-          <label>Тип комнаты</label>
-          <select id="videoRoomType">
-            <option value="lesson">Урок (учитель → ученик)</option>
-            <option value="meeting">Совещание (до 5 участников)</option>
+          <label>Пригласить пользователя</label>
+          <select id="videoRoomParticipant">
+            <option value="">Выберите пользователя</option>
+            ${userOptions}
           </select>
         </div>
         <div class="modal-buttons">
           <button class="btn-secondary" id="cancelVideoRoomBtn">Отмена</button>
-          <button class="btn-primary" id="createVideoRoomBtn">Создать</button>
+          <button class="btn-primary" id="createVideoRoomBtn">Создать звонок</button>
         </div>
       </div>
     </div>
@@ -316,31 +393,46 @@ function showCreateVideoRoomModal() {
   document.getElementById('cancelVideoRoomBtn').onclick = () => modal.remove();
   document.getElementById('createVideoRoomBtn').onclick = async () => {
     const title = document.getElementById('videoRoomTitle').value.trim();
+    const participantId = document.getElementById('videoRoomParticipant').value;
+    
     if (!title) {
       alert('Введите название');
       return;
     }
-    const roomType = document.getElementById('videoRoomType').value;
+    if (!participantId) {
+      alert('Выберите участника');
+      return;
+    }
     
-    // Создаём комнату в БД
-    const response = await fetch(`${API_BASE}/live-rooms`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        host_id: currentUser.id,
-        title: title,
-        description: `Видео-комната. Тип: ${roomType}`,
-        room_type: 'video'
-      })
-    });
+    const callId = 'call_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
     
-    if (response.ok) {
-      const result = await response.json();
-      modal.remove();
-      // Открываем видео-комнату
-      startVideoLesson(result.roomId, true, null, null);
-    } else {
-      alert('Ошибка создания комнаты');
+    try {
+      // 1. Создаём запись в video_calls
+      const response = await fetch(`${API_BASE}/video-calls`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: callId,
+          creator_id: currentUser.id,
+          participant_id: participantId
+        })
+      });
+      
+      if (response.ok) {
+        modal.remove();
+        
+        // 2. Отправляем ссылку в чат участнику
+        const link = `${window.location.origin}/index.html?room=${callId}`;
+        await sendChatMessage(participantId, `📹 Приглашение на видео-звонок: ${link}`);
+        
+        // 3. Открываем видео-комнату для создателя
+        startVideoLesson(callId, true, null, null);
+      } else {
+        alert('Ошибка создания звонка');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Ошибка соединения');
     }
   };
 }

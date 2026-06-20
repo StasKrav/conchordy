@@ -30,13 +30,14 @@ io.on('connection', (socket) => {
   console.log('🔌 Новое подключение:', socket.id);
   
   socket.on('join-room', (roomId, userId, userName) => {
+    // ✅ Сохраняем userId в сокете
+    socket.userId = userId;
+    socket.userName = userName;
+    
     socket.join(roomId);
     console.log(`📡 ${userName} (${userId}) присоединился к комнате ${roomId}`);
     
-    // Увеличиваем счётчик слушателей
     db.run(`UPDATE live_rooms SET listeners_count = listeners_count + 1 WHERE id = ?`, [roomId]);
-    
-    // Оповещаем всех в комнате
     io.to(roomId).emit('user-joined', { userId, userName, timestamp: Date.now() });
   });
   
@@ -61,8 +62,8 @@ io.on('connection', (socket) => {
   });
 
   // WebRTC сигнализация
-  socket.on('webrtc-offer', ({ roomId, signal }) => {
-    console.log(`📡 WebRTC offer от ${socket.userId} в комнату ${roomId}`);
+  socket.on('webrtc-offer', ({ roomId, signal, targetId }) => {
+    console.log(`📡 WebRTC offer от ${socket.userId || 'unknown'} в комнату ${roomId}`);
     socket.to(roomId).emit('webrtc-offer', { signal, from: socket.userId });
   });
   
