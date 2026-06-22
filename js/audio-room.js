@@ -128,10 +128,17 @@ function initRoomSocket(roomId, isHost) {
     console.log("🔗 WebSocket подключён");
     currentSocket.emit("join-room", roomId, currentUser.id, currentUser.name);
     
-    // ✅ Если слушатель, запрашиваем offer у хоста
+    // ✅ Если слушатель, проверяем статус комнаты
     if (!isHost && currentRoom) {
-      console.log("📡 Запрашиваем offer у хоста");
-      currentSocket.emit("request-offer", { roomId: roomId });
+      if (currentRoom.status === 'live') {
+        // Эфир уже идёт — сразу создаём peer
+        console.log("🎙️ Эфир уже идёт, создаём peer для хоста");
+        createListenerPeer(currentRoom.host_id);
+      } else {
+        // Эфир ещё не начался — запрашиваем offer
+        console.log("📡 Запрашиваем offer у хоста");
+        currentSocket.emit("request-offer", { roomId: roomId });
+      }
     }
   });
 
@@ -140,10 +147,10 @@ function initRoomSocket(roomId, isHost) {
     // Если хост получает offer от слушателя
     if (isHost && data.from !== currentUser.id) {
       console.log(`📡 Хост получил offer от ${data.from}, создаём peer`);
-      // Создаём peer для этого слушателя
+      // Создаём peer для этого слушателя и передаём offer
       const listenerId = data.from;
       const listenerName = users.find(u => u.id === listenerId)?.name || 'Слушатель';
-      createPeerForListener(listenerId, listenerName);
+      createPeerForListener(listenerId, listenerName, data.signal);
     }
     if (!isHost && data.targetId === currentUser.id) {
       console.log("📡 Получен offer, создаём answer");
@@ -164,6 +171,8 @@ function initRoomSocket(roomId, isHost) {
         audio.srcObject = stream;
         audio.autoplay = true;
         audio.volume = 0.8;
+        // Явно запускаем воспроизведение (autoplay может не сработать в некоторых браузерах)
+        audio.play().catch(err => console.warn("⚠️ autoplay заблокирован:", err));
 
         const audioStatus = document.getElementById("audioStatus");
         if (audioStatus) {
@@ -179,19 +188,44 @@ function initRoomSocket(roomId, isHost) {
   });
 
   currentSocket.on("webrtc-answer", (data) => {
-    if (isHost && data.targetId === currentUser.id) {
-      console.log("📡 Получен answer");
+    if (isHost) {
+      console.log(`📡 Хост получил answer от ${data.from}`);
       const peer = peerInstances.get(data.from);
       if (peer) {
+        console.log(`📡 Применяем answer для peer ${data.from}`);
         peer.signal(data.signal);
+      } else {
+        console.warn(`⚠️ Peer для ${data.from} не найден`);
       }
+    } else {
+      // Слушатель получил answer от хоста
+      console.log(`📡 Слушатель получил answer от ${data.from}`);
+      const peer = peerInstances.get("listener");
+      if (peer) {
+        console.log(`📡 Применяем answer для слушателя`);
+        peer.signal(data.signal);
+      } else {
+        console.warn(`⚠️ Peer слушателя не найден`);
+      }
+    }
+  });
+
+  // Обработка ICE candidates
+  currentSocket.on("webrtc-ice-candidate", (data) => {
+    console.log(`📡 Получен ICE candidate от ${data.from}`);
+    // Ищем peer: у хоста — по ID отправителя, у слушателя — "listener"
+    const peerKey = isHost ? data.from : "listener";
+    const peer = peerInstances.get(peerKey);
+    if (peer) {
+      peer.signal(data.candidate);
     }
   });
 
   currentSocket.on('student-requested-offer', (data) => {
     if (isHost && isBroadcasting) {
-      console.log(`👂 Ученик ${data.from} запросил offer, отправляем поток`);
-      createPeerForListener(data.from, 'Слушатель');
+      console.log(`👂 Ученик ${data.from} запросил offer, ждём webrtc-offer...`);
+      // Не создаём peer здесь — дожидаемся webrtc-offer от слушателя,
+      // который придёт после broadcast-started
     }
   });
 
@@ -252,17 +286,26 @@ function createListenerPeer(hostId) {
 
   const peer = new SimplePeer({
     initiator: true,  // Слушатель инициирует соединение
-    trickle: false
+    trickle: true     // Разрешаем trickle для ICE candidates
   });
 
   peer.on("signal", (signalData) => {
     console.log('📡 Слушатель отправляет сигнал:', signalData.type);
     if (currentSocket && currentRoom) {
-      currentSocket.emit("webrtc-offer", {
-        roomId: currentRoom.id,
-        signal: signalData,
-        targetId: hostId
-      });
+      if (signalData.type === 'offer') {
+        currentSocket.emit("webrtc-offer", {
+          roomId: currentRoom.id,
+          signal: signalData,
+          targetId: hostId
+        });
+      } else {
+        // ICE candidate или другой сигнал — отправляем как candidate
+        currentSocket.emit("webrtc-ice-candidate", {
+          roomId: currentRoom.id,
+          candidate: signalData,
+          targetId: hostId
+        });
+      }
     }
   });
 
@@ -272,12 +315,17 @@ function createListenerPeer(hostId) {
     audio.srcObject = stream;
     audio.autoplay = true;
     audio.volume = 0.8;
+    audio.play().catch(err => console.warn("⚠️ autoplay заблокирован:", err));
 
     const audioStatus = document.getElementById("audioStatus");
     if (audioStatus) {
       audioStatus.innerHTML = '<i class="fa-solid fa-headphones"></i> 🎵 Трансляция идёт';
       audioStatus.style.color = "#2f6b47";
     }
+  });
+
+  peer.on("connect", () => {
+    console.log("✅ WebRTC соединение установлено (слушатель)");
   });
 
   peer.on("error", (err) => {
@@ -746,7 +794,16 @@ async function testMicrophone() {
   if (indicator) indicator.style.display = "flex";
 
   try {
+    // ⛔ Останавливаем предыдущий тестовый поток, если был
+    if (window.__micTestStream) {
+      window.__micTestStream.getTracks().forEach(t => t.stop());
+      window.__micTestStream = null;
+    }
+
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    // 💾 Сохраняем поток в глобальную переменную, чтобы startBroadcast() мог его остановить
+    window.__micTestStream = stream;
+
     const audioContext = new AudioContext();
     const source = audioContext.createMediaStreamSource(stream);
     const analyser = audioContext.createAnalyser();
@@ -776,6 +833,7 @@ async function testMicrophone() {
       audio.pause();
       if (!isBroadcasting) {
         stream.getTracks().forEach((track) => track.stop());
+        window.__micTestStream = null;
         if (indicator) indicator.style.display = "none";
         if (volumeLevel) volumeLevel.style.width = "0%";
       }
@@ -792,7 +850,7 @@ async function testMicrophone() {
 
 // Начать трансляцию (хост)
 async function startBroadcast(roomId) {
-  console.log("🎤 Начать эфир / Возобновить");
+  console.log("🎤 Начать эфир / Возобновить", { roomId, hasLocalStream: !!localStream, isBroadcasting });
 
   if (!isAudioSupported()) {
     alert("Ваш браузер не поддерживает WebRTC");
@@ -800,16 +858,37 @@ async function startBroadcast(roomId) {
   }
 
   try {
+    // ⛔ Останавливаем тест микрофона, если он запущен
+    const micTestIndicator = document.getElementById("micTestIndicator");
+    if (micTestIndicator && micTestIndicator.style.display !== "none") {
+      console.log("🛑 Останавливаем тест микрофона перед началом эфира");
+      micTestIndicator.style.display = "none";
+      const volumeLevel = document.getElementById("volumeLevel");
+      if (volumeLevel) volumeLevel.style.width = "0%";
+    }
+
+    // ⛔ Останавливаем любой предыдущий поток (включая поток от теста)
     if (localStream) {
+      console.log("🛑 Останавливаем localStream");
       localStream.getTracks().forEach((track) => track.stop());
       localStream = null;
     }
 
+    // ⛔ Останавливаем глобальный тестовый поток, если он висит
+    if (window.__micTestStream) {
+      console.log("🛑 Останавливаем __micTestStream");
+      window.__micTestStream.getTracks().forEach(t => t.stop());
+      window.__micTestStream = null;
+    }
+
+    console.log("📢 Запрашиваем getUserMedia...");
     localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    console.log("🎙️ Микрофон получен");
+    console.log("🎙️ Микрофон получен, треки:", localStream.getAudioTracks().length, localStream.getAudioTracks().map(t => ({ enabled: t.enabled, readyState: t.readyState })));
 
     if (currentRoom && currentRoom.status !== "live") {
-      await fetch(`${API_BASE}/live-rooms/${roomId}/start`, { method: "PUT" });
+      console.log("📡 Отправляем запрос на старт комнаты...");
+      const resp = await fetch(`${API_BASE}/live-rooms/${roomId}/start`, { method: "PUT" });
+      console.log("📡 Ответ сервера:", resp.status, resp.ok);
       currentRoom.status = "live";
     }
 
@@ -817,7 +896,10 @@ async function startBroadcast(roomId) {
 
     // ✅ Отправляем сигнал всем в комнате, что трансляция началась
     if (currentSocket) {
+      console.log("📡 Отправляем start-broadcast через socket");
       currentSocket.emit("start-broadcast", roomId);
+    } else {
+      console.error("❌ currentSocket отсутствует!");
     }
 
     // ✅ Обновляем UI
@@ -834,8 +916,30 @@ async function startBroadcast(roomId) {
 
     console.log("🎙️ Трансляция активна");
   } catch (e) {
-    console.error("Ошибка начала трансляции:", e);
-    alert("Не удалось получить доступ к микрофону");
+    console.error("❌ Ошибка начала трансляции:", e.name, e.message, e);
+    // Если getUserMedia упал — пробуем ещё раз через 500мс (возможно микрофон ещё занят тестом)
+    try {
+      console.log("🔄 Повторная попытка getUserMedia через 500мс...");
+      await new Promise(resolve => setTimeout(resolve, 500));
+      localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log("🎙️ Микрофон получен со второй попытки");
+      isBroadcasting = true;
+      if (currentSocket) {
+        currentSocket.emit("start-broadcast", roomId);
+      }
+      const startBtn = document.getElementById("startBroadcastBtn");
+      const pauseBtn = document.getElementById("pauseBroadcastBtn");
+      if (startBtn) startBtn.disabled = true;
+      if (pauseBtn) pauseBtn.disabled = false;
+      const statusEl = document.querySelector('#broadcastStatus');
+      if (statusEl) {
+        statusEl.textContent = 'Эфир идёт';
+        statusEl.style.color = '#c2410c';
+      }
+    } catch (e2) {
+      console.error("❌ Ошибка начала трансляции (повтор):", e2.name, e2.message, e2);
+      alert("Не удалось получить доступ к микрофону. Убедитесь, что микрофон не занят другим приложением или проверкой микрофона.");
+    }
   }
 }
 
@@ -920,23 +1024,42 @@ async function endBroadcast() {
 }
 
 // Создать peer-соединение для слушателя (вызывается у хоста)
-function createPeerForListener(listenerId, listenerName) {
+function createPeerForListener(listenerId, listenerName, offerSignal) {
   if (!localStream || !isBroadcasting) {
     console.warn('⚠️ Нет потока или трансляция не активна');
     return;
   }
 
+  // Если peer для этого слушателя уже существует — не создаём новый
+  if (peerInstances.has(listenerId)) {
+    console.log(`🔗 Peer для ${listenerName} (${listenerId}) уже существует`);
+    return;
+  }
+
   console.log(`🔗 Хост создаёт peer для слушателя ${listenerName} (${listenerId})`);
+
+  // Проверяем, что localStream жив и имеет аудиотреки
+  if (localStream) {
+    const audioTracks = localStream.getAudioTracks();
+    console.log(`🔊 Хост: localStream треки:`, audioTracks.map(t => ({ kind: t.kind, enabled: t.enabled, readyState: t.readyState })));
+    if (audioTracks.length === 0) {
+      console.warn('⚠️ Хост: нет аудиотреков в localStream!');
+    }
+  } else {
+    console.warn('⚠️ Хост: localStream is null!');
+  }
 
   const peer = new SimplePeer({
     initiator: false,  // Хост НЕ инициирует — ждёт offer от слушателя
     stream: localStream,
-    trickle: false
+    trickle: false     // Отключаем trickle — весь сигнал в одном сообщении
   });
 
   peer.on("signal", (signalData) => {
     console.log('📡 Хост отправляет сигнал:', signalData.type, 'для', listenerId);
     if (currentSocket && currentRoom) {
+      // Отправляем ЛЮБОЙ сигнал от хоста как webrtc-answer
+      // (включая transceiverRequest, который нужен для передачи аудио)
       currentSocket.emit("webrtc-answer", {
         roomId: currentRoom.id,
         signal: signalData,
@@ -949,10 +1072,28 @@ function createPeerForListener(listenerId, listenerName) {
     console.error(`Peer ошибка (${listenerId}):`, err);
   });
 
+  peer.on("connect", () => {
+    console.log(`✅ WebRTC соединение установлено со слушателем ${listenerName} (${listenerId})`);
+    // Проверяем, что поток всё ещё есть
+    if (localStream) {
+      console.log(`🔊 Хост: соединение установлено, localStream треки:`, localStream.getAudioTracks().map(t => ({ enabled: t.enabled, readyState: t.readyState })));
+    }
+  });
+
+  peer.on("stream", (stream) => {
+    console.log(`📹 Хост получил поток от слушателя ${listenerId} (не ожидалось)`);
+  });
+
   peer.on("close", () => {
     console.log(`Peer закрыт (${listenerId})`);
     peerInstances.delete(listenerId);
   });
+
+  // ✅ Передаём offer от слушателя в peer, чтобы установить соединение
+  if (offerSignal) {
+    console.log(`📡 Хост применяет offer для ${listenerId}`);
+    peer.signal(offerSignal);
+  }
 
   peerInstances.set(listenerId, peer);
 }

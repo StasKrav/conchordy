@@ -67,9 +67,9 @@ io.on('connection', (socket) => {
     socket.to(roomId).emit('webrtc-offer', { signal, from: socket.userId });
   });
   
-  socket.on('webrtc-answer', ({ roomId, signal }) => {
-    console.log(`📡 WebRTC answer от ${socket.userId} в комнату ${roomId}`);
-    socket.to(roomId).emit('webrtc-answer', { signal, from: socket.userId });
+  socket.on('webrtc-answer', ({ roomId, signal, targetId }) => {
+    console.log(`📡 WebRTC answer от ${socket.userId} в комнату ${roomId} для ${targetId}`);
+    socket.to(roomId).emit('webrtc-answer', { signal, from: socket.userId, targetId });
   });
   
   socket.on('webrtc-ice-candidate', ({ roomId, candidate }) => {
